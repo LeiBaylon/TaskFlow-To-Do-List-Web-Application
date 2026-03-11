@@ -26,6 +26,7 @@ import FocusMode from "@/components/FocusMode";
 import ProductivityPanel from "@/components/ProductivityPanel";
 import TaskModal from "@/components/TaskModal";
 import LandingPage from "@/components/LandingPage";
+import SplashScreen from "@/components/SplashScreen";
 import {
   DndContext,
   DragEndEvent,
@@ -45,6 +46,7 @@ export default function Home() {
   const [listSelectMode, setListSelectMode] = useState(false);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
 
   // --- Keyboard shortcuts ---
   useEffect(() => {
@@ -269,12 +271,15 @@ export default function Home() {
   // Show landing page for unauthenticated users
   if (!state.user) {
     return (
-      <LandingPage
-        onGetStarted={() => {
-          // Trigger sign in from Sidebar
-          dispatch({ type: "SET_VIEW_MODE", payload: "dashboard" });
-        }}
-      />
+      <>
+        {!splashDone && <SplashScreen onFinish={() => setSplashDone(true)} />}
+        <LandingPage
+          onGetStarted={() => {
+            // Trigger sign in from Sidebar
+            dispatch({ type: "SET_VIEW_MODE", payload: "dashboard" });
+          }}
+        />
+      </>
     );
   }
 
