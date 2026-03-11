@@ -12,6 +12,9 @@ import {
   Inbox,
   LayoutList,
   Kanban,
+  CalendarDays,
+  Home,
+  Monitor,
 } from "lucide-react";
 import { useApp } from "@/store/AppContext";
 import { parseTaskInput } from "@/lib/nlp";
@@ -79,6 +82,17 @@ export default function CommandPalette() {
 
     // Views
     cmds.push({
+      id: "view-dashboard",
+      icon: <Home size={16} />,
+      label: "Dashboard View",
+      description: "Switch to dashboard",
+      category: "Views",
+      action: () => {
+        dispatch({ type: "SET_VIEW_MODE", payload: "dashboard" });
+        close();
+      },
+    });
+    cmds.push({
       id: "view-list",
       icon: <LayoutList size={16} />,
       label: "List View",
@@ -97,6 +111,17 @@ export default function CommandPalette() {
       category: "Views",
       action: () => {
         dispatch({ type: "SET_VIEW_MODE", payload: "kanban" });
+        close();
+      },
+    });
+    cmds.push({
+      id: "view-calendar",
+      icon: <CalendarDays size={16} />,
+      label: "Calendar View",
+      description: "Switch to calendar",
+      category: "Views",
+      action: () => {
+        dispatch({ type: "SET_VIEW_MODE", payload: "calendar" });
         close();
       },
     });
@@ -119,6 +144,16 @@ export default function CommandPalette() {
       category: "Appearance",
       action: () => {
         dispatch({ type: "SET_THEME", payload: "dark" });
+        close();
+      },
+    });
+    cmds.push({
+      id: "theme-system",
+      icon: <Monitor size={16} />,
+      label: "System Theme",
+      category: "Appearance",
+      action: () => {
+        dispatch({ type: "SET_THEME", payload: "system" });
         close();
       },
     });

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -12,6 +12,8 @@ import {
   FolderOpen,
   ArrowRight,
   PartyPopper,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useApp } from "@/store/AppContext";
 import { formatRelativeDate, getPriorityColor } from "@/lib/nlp";
@@ -20,18 +22,23 @@ import PomodoroWidget from "./PomodoroWidget";
 
 export default function DashboardView() {
   const { state, dispatch, openTaskModal } = useApp();
+  const [rcPage, setRcPage] = useState(0);
+  const [foldersPage, setFoldersPage] = useState(0);
+  const PAGE_SIZE = 10;
+  const isDoneTask = (t: (typeof state.tasks)[number]) =>
+    t.completed || t.status === "done";
 
   const stats = useMemo(() => {
     const now = new Date();
     const todayKey = now.toISOString().split("T")[0];
     const total = state.tasks.length;
-    const completed = state.tasks.filter((t) => t.completed).length;
+    const completed = state.tasks.filter((t) => isDoneTask(t)).length;
     const completedToday = state.tasks.filter((t) =>
       t.completedAt?.startsWith(todayKey),
     ).length;
-    const pending = state.tasks.filter((t) => !t.completed).length;
+    const pending = state.tasks.filter((t) => !isDoneTask(t)).length;
     const overdue = state.tasks.filter((t) => {
-      if (t.completed || !t.dueDate) return false;
+      if (isDoneTask(t) || !t.dueDate) return false;
       return new Date(t.dueDate) < new Date(todayKey);
     }).length;
     const highPriority = state.tasks.filter(
@@ -65,7 +72,7 @@ export default function DashboardView() {
   const upcomingTasks = useMemo(() => {
     const now = new Date();
     return state.tasks
-      .filter((t) => !t.completed && t.dueDate)
+      .filter((t) => !isDoneTask(t) && t.dueDate)
       .sort(
         (a, b) =>
           new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime(),
@@ -75,20 +82,19 @@ export default function DashboardView() {
 
   const recentCompleted = useMemo(() => {
     return state.tasks
-      .filter((t) => t.completed && t.completedAt)
+      .filter((t) => isDoneTask(t) && (t.completedAt || t.updatedAt))
       .sort(
         (a, b) =>
-          new Date(b.completedAt!).getTime() -
-          new Date(a.completedAt!).getTime(),
-      )
-      .slice(0, 5);
+          new Date(b.completedAt || b.updatedAt).getTime() -
+          new Date(a.completedAt || a.updatedAt).getTime(),
+      );
   }, [state.tasks]);
 
   const folderStats = useMemo(() => {
     return state.folders.map((f) => ({
       ...f,
       total: state.tasks.filter((t) => t.folderId === f.id).length,
-      pending: state.tasks.filter((t) => t.folderId === f.id && !t.completed)
+      pending: state.tasks.filter((t) => t.folderId === f.id && !isDoneTask(t))
         .length,
     }));
   }, [state.tasks, state.folders]);
@@ -339,34 +345,81 @@ export default function DashboardView() {
             >
               No completed tasks yet
             </p>
-          : <div className="space-y-2">
-              {recentCompleted.map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-center gap-3 px-3 py-2 rounded-xl"
-                  style={{ background: "var(--color-background)" }}
-                >
-                  <CheckCircle2
-                    size={14}
-                    style={{ color: "var(--color-success)" }}
-                  />
-                  <span
-                    className="flex-1 text-sm truncate line-through opacity-60"
-                    style={{ color: "var(--color-text-primary)" }}
+          : (() => {
+              const rcTotalPages = Math.ceil(
+                recentCompleted.length / PAGE_SIZE,
+              );
+              const rcSlice = recentCompleted.slice(
+                rcPage * PAGE_SIZE,
+                rcPage * PAGE_SIZE + PAGE_SIZE,
+              );
+              return (
+                <>
+                  <div
+                    className="overflow-y-auto space-y-2"
+                    style={{ maxHeight: "calc(5 * 44px)" }}
                   >
-                    {task.title}
-                  </span>
-                  {task.completedAt && (
-                    <span
-                      className="text-[11px] shrink-0"
-                      style={{ color: "var(--color-text-tertiary)" }}
+                    {rcSlice.map((task) => (
+                      <div
+                        key={task.id}
+                        className="flex items-center gap-3 px-3 py-2 rounded-xl"
+                        style={{ background: "var(--color-background)" }}
+                      >
+                        <CheckCircle2
+                          size={14}
+                          style={{ color: "var(--color-success)" }}
+                        />
+                        <span
+                          className="flex-1 text-sm truncate line-through opacity-60"
+                          style={{ color: "var(--color-text-primary)" }}
+                        >
+                          {task.title}
+                        </span>
+                        {task.completedAt && (
+                          <span
+                            className="text-[11px] shrink-0"
+                            style={{ color: "var(--color-text-tertiary)" }}
+                          >
+                            {formatRelativeDate(task.completedAt.split("T")[0])}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {rcTotalPages > 1 && (
+                    <div
+                      className="flex items-center justify-between mt-3 pt-2"
+                      style={{ borderTop: "1px solid var(--color-border)" }}
                     >
-                      {formatRelativeDate(task.completedAt.split("T")[0])}
-                    </span>
+                      <button
+                        onClick={() => setRcPage((p) => Math.max(0, p - 1))}
+                        disabled={rcPage === 0}
+                        className="p-1 rounded-lg transition-colors disabled:opacity-30"
+                        style={{ color: "var(--color-text-secondary)" }}
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
+                      <span
+                        className="text-[11px]"
+                        style={{ color: "var(--color-text-tertiary)" }}
+                      >
+                        {rcPage + 1} / {rcTotalPages}
+                      </span>
+                      <button
+                        onClick={() =>
+                          setRcPage((p) => Math.min(rcTotalPages - 1, p + 1))
+                        }
+                        disabled={rcPage === rcTotalPages - 1}
+                        className="p-1 rounded-lg transition-colors disabled:opacity-30"
+                        style={{ color: "var(--color-text-secondary)" }}
+                      >
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
                   )}
-                </div>
-              ))}
-            </div>
+                </>
+              );
+            })()
           }
         </motion.div>
 
@@ -386,51 +439,99 @@ export default function DashboardView() {
             <FolderOpen size={14} className="inline mr-1.5 -mt-0.5" />
             Folders
           </h2>
-          <div className="space-y-2">
-            {folderStats.map((folder) => (
-              <button
-                key={folder.id}
-                onClick={() => {
-                  dispatch({ type: "SET_ACTIVE_FOLDER", payload: folder.id });
-                  dispatch({ type: "SET_VIEW_MODE", payload: "list" });
-                }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors hover:opacity-80"
-                style={{ background: "var(--color-background)" }}
-              >
+          {(() => {
+            const fTotalPages = Math.ceil(folderStats.length / PAGE_SIZE);
+            const fSlice = folderStats.slice(
+              foldersPage * PAGE_SIZE,
+              foldersPage * PAGE_SIZE + PAGE_SIZE,
+            );
+            return (
+              <>
                 <div
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ background: folder.color || "#6366f1" }}
-                />
-                <span
-                  className="flex-1 text-sm"
-                  style={{ color: "var(--color-text-primary)" }}
+                  className="overflow-y-auto space-y-2"
+                  style={{ maxHeight: "calc(5 * 48px)" }}
                 >
-                  {folder.name}
-                </span>
-                <span
-                  className="text-[11px]"
-                  style={{ color: "var(--color-text-tertiary)" }}
-                >
-                  {folder.pending} pending
-                </span>
-                <div
-                  className="w-12 h-1.5 rounded-full overflow-hidden"
-                  style={{ background: "var(--color-border)" }}
-                >
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      background: folder.color || "#6366f1",
-                      width:
-                        folder.total > 0 ?
-                          `${((folder.total - folder.pending) / folder.total) * 100}%`
-                        : "0%",
-                    }}
-                  />
+                  {fSlice.map((folder) => (
+                    <button
+                      key={folder.id}
+                      onClick={() => {
+                        dispatch({
+                          type: "SET_ACTIVE_FOLDER",
+                          payload: folder.id,
+                        });
+                        dispatch({ type: "SET_VIEW_MODE", payload: "list" });
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors hover:opacity-80"
+                      style={{ background: "var(--color-background)" }}
+                    >
+                      <div
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ background: folder.color || "#6366f1" }}
+                      />
+                      <span
+                        className="flex-1 text-sm"
+                        style={{ color: "var(--color-text-primary)" }}
+                      >
+                        {folder.name}
+                      </span>
+                      <span
+                        className="text-[11px]"
+                        style={{ color: "var(--color-text-tertiary)" }}
+                      >
+                        {folder.pending} pending
+                      </span>
+                      <div
+                        className="w-12 h-1.5 rounded-full overflow-hidden"
+                        style={{ background: "var(--color-border)" }}
+                      >
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            background: folder.color || "#6366f1",
+                            width:
+                              folder.total > 0 ?
+                                `${((folder.total - folder.pending) / folder.total) * 100}%`
+                              : "0%",
+                          }}
+                        />
+                      </div>
+                    </button>
+                  ))}
                 </div>
-              </button>
-            ))}
-          </div>
+                {fTotalPages > 1 && (
+                  <div
+                    className="flex items-center justify-between mt-3 pt-2"
+                    style={{ borderTop: "1px solid var(--color-border)" }}
+                  >
+                    <button
+                      onClick={() => setFoldersPage((p) => Math.max(0, p - 1))}
+                      disabled={foldersPage === 0}
+                      className="p-1 rounded-lg transition-colors disabled:opacity-30"
+                      style={{ color: "var(--color-text-secondary)" }}
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+                    <span
+                      className="text-[11px]"
+                      style={{ color: "var(--color-text-tertiary)" }}
+                    >
+                      {foldersPage + 1} / {fTotalPages}
+                    </span>
+                    <button
+                      onClick={() =>
+                        setFoldersPage((p) => Math.min(fTotalPages - 1, p + 1))
+                      }
+                      disabled={foldersPage === fTotalPages - 1}
+                      className="p-1 rounded-lg transition-colors disabled:opacity-30"
+                      style={{ color: "var(--color-text-secondary)" }}
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </motion.div>
       </div>
 

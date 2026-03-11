@@ -5,6 +5,8 @@ export interface Task {
   title: string;
   description?: string;
   completed: boolean;
+  recurrence?: "none" | "daily" | "weekly" | "monthly";
+  reminderMinutes?: number | null;
   priority: Priority;
   dueDate?: string | null;
   dueTime?: string | null;
@@ -13,7 +15,7 @@ export interface Task {
   parentId?: string | null;
   subtaskIds: string[];
   order: number;
-  status: 'todo' | 'in-progress' | 'done';
+  status: "todo" | "in-progress" | "done";
   createdAt: string;
   updatedAt: string;
   completedAt?: string | null;
@@ -39,5 +41,5 @@ export interface UserProfile {
   createdAt: string;
 }
 
-export type ViewMode = 'list' | 'kanban' | 'calendar' | 'dashboard';
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ViewMode = "list" | "kanban" | "calendar" | "dashboard" | "folders";
+export type ThemeMode = "light" | "dark" | "system";

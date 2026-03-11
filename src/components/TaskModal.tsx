@@ -14,6 +14,8 @@ import {
   ChevronDown,
   AlignLeft,
   CircleDot,
+  Repeat,
+  Bell,
 } from "lucide-react";
 import { useApp } from "@/store/AppContext";
 import { getPriorityColor, getPriorityLabel } from "@/lib/nlp";
@@ -36,6 +38,8 @@ export default function TaskModal() {
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("");
   const [status, setStatus] = useState<Task["status"]>("todo");
+  const [recurrence, setRecurrence] = useState<Task["recurrence"]>("none");
+  const [reminderMinutes, setReminderMinutes] = useState<number | null>(null);
   const [folderId, setFolderId] = useState("inbox");
   const [tagsInput, setTagsInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -54,6 +58,8 @@ export default function TaskModal() {
       setDueDate(existingTask.dueDate || "");
       setDueTime(existingTask.dueTime || "");
       setStatus(existingTask.status);
+      setRecurrence(existingTask.recurrence || "none");
+      setReminderMinutes(existingTask.reminderMinutes ?? null);
       setFolderId(existingTask.folderId);
       setTags([...existingTask.tags]);
       setParentId(existingTask.parentId ?? null);
@@ -64,6 +70,8 @@ export default function TaskModal() {
       setDueDate(defaults?.dueDate || "");
       setDueTime(defaults?.dueTime || "");
       setStatus(defaults?.status || "todo");
+      setRecurrence(defaults?.recurrence || "none");
+      setReminderMinutes(defaults?.reminderMinutes ?? null);
       setFolderId(defaults?.folderId || state.activeFolderId);
       setTags(defaults?.tags ? [...defaults.tags] : []);
       setParentId(defaults?.parentId ?? null);
@@ -99,25 +107,38 @@ export default function TaskModal() {
       return;
     }
 
+    const isDone = status === "done";
+
     if (isEdit && existingTask) {
+      const nextCompletedAt =
+        isDone ? existingTask.completedAt || new Date().toISOString() : null;
+
       updateTask(existingTask.id, {
         title: title.trim(),
         description: description.trim() || undefined,
         priority,
         dueDate: dueDate || null,
         dueTime: dueTime || null,
+        recurrence,
+        reminderMinutes,
+        completed: isDone,
+        completedAt: nextCompletedAt,
         status,
         folderId,
         tags,
       });
     } else {
+      const completedAt = isDone ? new Date().toISOString() : null;
       addTask({
         title: title.trim(),
         description: description.trim() || undefined,
-        completed: status === "done",
+        completed: isDone,
+        completedAt,
         priority,
         dueDate: dueDate || null,
         dueTime: dueTime || null,
+        recurrence,
+        reminderMinutes,
         tags,
         folderId,
         parentId,
@@ -395,6 +416,99 @@ export default function TaskModal() {
                     )}
                   </div>
                 </div>
+              </div>
+
+              {/* Recurrence */}
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                  style={{
+                    background:
+                      recurrence !== "none" ?
+                        "rgba(99,102,241,0.1)"
+                      : "var(--color-background)",
+                  }}
+                >
+                  <Repeat
+                    size={13}
+                    style={{
+                      color:
+                        recurrence !== "none" ?
+                          "var(--color-accent)"
+                        : "var(--color-text-tertiary)",
+                    }}
+                  />
+                </div>
+                <select
+                  value={recurrence || "none"}
+                  onChange={(e) =>
+                    setRecurrence(e.target.value as Task["recurrence"])
+                  }
+                  className="flex-1 text-xs px-3 py-2 rounded-xl outline-none"
+                  style={{
+                    background: "var(--color-background)",
+                    color: "var(--color-text-primary)",
+                    border: "1.5px solid var(--color-border)",
+                  }}
+                >
+                  <option value="none">No repeat</option>
+                  <option value="daily">Repeat daily</option>
+                  <option value="weekly">Repeat weekly</option>
+                  <option value="monthly">Repeat monthly</option>
+                </select>
+              </div>
+
+              {/* Reminder */}
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                  style={{
+                    background:
+                      reminderMinutes != null ?
+                        "rgba(99,102,241,0.1)"
+                      : "var(--color-background)",
+                  }}
+                >
+                  <Bell
+                    size={13}
+                    style={{
+                      color:
+                        reminderMinutes != null ?
+                          "var(--color-accent)"
+                        : "var(--color-text-tertiary)",
+                    }}
+                  />
+                </div>
+                <select
+                  value={
+                    reminderMinutes == null ? "none" : String(reminderMinutes)
+                  }
+                  onChange={async (e) => {
+                    const next =
+                      e.target.value === "none" ? null : Number(e.target.value);
+                    setReminderMinutes(next);
+                    if (
+                      next != null &&
+                      typeof Notification !== "undefined" &&
+                      Notification.permission === "default"
+                    ) {
+                      await Notification.requestPermission();
+                    }
+                  }}
+                  className="flex-1 text-xs px-3 py-2 rounded-xl outline-none"
+                  style={{
+                    background: "var(--color-background)",
+                    color: "var(--color-text-primary)",
+                    border: "1.5px solid var(--color-border)",
+                  }}
+                >
+                  <option value="none">No reminder</option>
+                  <option value="5">5 minutes before</option>
+                  <option value="15">15 minutes before</option>
+                  <option value="30">30 minutes before</option>
+                  <option value="60">1 hour before</option>
+                  <option value="1440">1 day before</option>
+                </select>
               </div>
 
               {/* Status */}

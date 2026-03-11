@@ -260,6 +260,8 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
             const newId = addTask({
               title: t.title,
               completed: false,
+              recurrence: t.recurrence || "none",
+              reminderMinutes: t.reminderMinutes ?? null,
               priority: t.priority,
               dueDate: t.dueDate ?? null,
               dueTime: t.dueTime ?? null,

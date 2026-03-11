@@ -49,6 +49,13 @@ interface AppState {
   focusTaskId: string | null;
   authLoading: boolean;
   taskModal: TaskModalState | null;
+  history: HistorySnapshot[];
+  future: HistorySnapshot[];
+}
+
+interface HistorySnapshot {
+  tasks: Task[];
+  folders: Folder[];
 }
 
 const initialState: AppState = {
@@ -73,12 +80,25 @@ const initialState: AppState = {
   focusTaskId: null,
   authLoading: true,
   taskModal: null,
+  history: [],
+  future: [],
 };
+
+function nextRecurringDate(dateStr: string, recurrence: Task["recurrence"]) {
+  const dt = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(dt.getTime())) return null;
+  if (recurrence === "daily") dt.setDate(dt.getDate() + 1);
+  if (recurrence === "weekly") dt.setDate(dt.getDate() + 7);
+  if (recurrence === "monthly") dt.setMonth(dt.getMonth() + 1);
+  return dt.toISOString().split("T")[0];
+}
 
 // ─── Actions ──────────────────────────────
 type Action =
   | { type: "SET_USER"; payload: User | null }
   | { type: "SET_PROFILE"; payload: UserProfile | null }
+  | { type: "SYNC_TASKS"; payload: Task[] }
+  | { type: "SYNC_FOLDERS"; payload: Folder[] }
   | { type: "SET_TASKS"; payload: Task[] }
   | { type: "ADD_TASK"; payload: Task }
   | { type: "UPDATE_TASK"; payload: { id: string; updates: Partial<Task> } }
@@ -95,7 +115,20 @@ type Action =
   | { type: "SET_FOCUS_TASK"; payload: string | null }
   | { type: "SET_AUTH_LOADING"; payload: boolean }
   | { type: "REORDER_TASKS"; payload: Task[] }
-  | { type: "SET_TASK_MODAL"; payload: TaskModalState | null };
+  | { type: "SET_TASK_MODAL"; payload: TaskModalState | null }
+  | { type: "UNDO" }
+  | { type: "REDO" };
+
+function withHistory(state: AppState): Pick<AppState, "history" | "future"> {
+  const nextHistory = [
+    ...state.history,
+    { tasks: state.tasks, folders: state.folders },
+  ];
+  return {
+    history: nextHistory.slice(-100),
+    future: [],
+  };
+}
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -103,37 +136,53 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, user: action.payload, authLoading: false };
     case "SET_PROFILE":
       return { ...state, profile: action.payload };
-    case "SET_TASKS":
+    case "SYNC_TASKS":
       return { ...state, tasks: action.payload };
+    case "SYNC_FOLDERS":
+      return { ...state, folders: action.payload };
+    case "SET_TASKS":
+      return { ...state, tasks: action.payload, ...withHistory(state) };
     case "ADD_TASK":
-      return { ...state, tasks: [...state.tasks, action.payload] };
+      return {
+        ...state,
+        tasks: [...state.tasks, action.payload],
+        ...withHistory(state),
+      };
     case "UPDATE_TASK":
       return {
         ...state,
         tasks: state.tasks.map((t) =>
           t.id === action.payload.id ? { ...t, ...action.payload.updates } : t,
         ),
+        ...withHistory(state),
       };
     case "DELETE_TASK":
       return {
         ...state,
         tasks: state.tasks.filter((t) => t.id !== action.payload),
+        ...withHistory(state),
       };
     case "SET_FOLDERS":
-      return { ...state, folders: action.payload };
+      return { ...state, folders: action.payload, ...withHistory(state) };
     case "ADD_FOLDER":
-      return { ...state, folders: [...state.folders, action.payload] };
+      return {
+        ...state,
+        folders: [...state.folders, action.payload],
+        ...withHistory(state),
+      };
     case "UPDATE_FOLDER":
       return {
         ...state,
         folders: state.folders.map((f) =>
           f.id === action.payload.id ? { ...f, ...action.payload.updates } : f,
         ),
+        ...withHistory(state),
       };
     case "DELETE_FOLDER":
       return {
         ...state,
         folders: state.folders.filter((f) => f.id !== action.payload),
+        ...withHistory(state),
       };
     case "SET_ACTIVE_FOLDER":
       return { ...state, activeFolderId: action.payload };
@@ -150,9 +199,37 @@ function reducer(state: AppState, action: Action): AppState {
     case "SET_AUTH_LOADING":
       return { ...state, authLoading: action.payload };
     case "REORDER_TASKS":
-      return { ...state, tasks: action.payload };
+      return { ...state, tasks: action.payload, ...withHistory(state) };
     case "SET_TASK_MODAL":
       return { ...state, taskModal: action.payload };
+    case "UNDO": {
+      if (state.history.length === 0) return state;
+      const prev = state.history[state.history.length - 1];
+      return {
+        ...state,
+        tasks: prev.tasks,
+        folders: prev.folders,
+        history: state.history.slice(0, -1),
+        future: [
+          ...state.future,
+          { tasks: state.tasks, folders: state.folders },
+        ],
+      };
+    }
+    case "REDO": {
+      if (state.future.length === 0) return state;
+      const next = state.future[state.future.length - 1];
+      return {
+        ...state,
+        tasks: next.tasks,
+        folders: next.folders,
+        history: [
+          ...state.history,
+          { tasks: state.tasks, folders: state.folders },
+        ].slice(-100),
+        future: state.future.slice(0, -1),
+      };
+    }
     default:
       return state;
   }
@@ -174,6 +251,8 @@ interface AppContextType {
   reorderTasks: (tasks: Task[]) => void;
   openTaskModal: (modal: TaskModalState) => void;
   closeTaskModal: () => void;
+  undo: () => void;
+  redo: () => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -243,15 +322,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const savedFolders = localStorage.getItem("zenflow-folders");
       if (savedTasks) {
         try {
-          dispatch({ type: "SET_TASKS", payload: JSON.parse(savedTasks) });
+          dispatch({ type: "SYNC_TASKS", payload: JSON.parse(savedTasks) });
         } catch {}
       }
       if (savedFolders) {
         try {
-          dispatch({ type: "SET_FOLDERS", payload: JSON.parse(savedFolders) });
+          dispatch({ type: "SYNC_FOLDERS", payload: JSON.parse(savedFolders) });
         } catch {}
       } else {
-        dispatch({ type: "SET_FOLDERS", payload: initialState.folders });
+        dispatch({ type: "SYNC_FOLDERS", payload: initialState.folders });
       }
       return;
     }
@@ -265,7 +344,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
     unsubTasksRef.current = onSnapshot(tasksQ, (snap) => {
       const tasks = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Task);
-      dispatch({ type: "SET_TASKS", payload: tasks });
+      dispatch({ type: "SYNC_TASKS", payload: tasks });
     });
 
     // Subscribe to folders
@@ -281,9 +360,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // Initialize with default
         const inbox = initialState.folders[0];
         setDoc(doc(db!, "users", uid, "folders", inbox.id), inbox);
-        dispatch({ type: "SET_FOLDERS", payload: [inbox] });
+        dispatch({ type: "SYNC_FOLDERS", payload: [inbox] });
       } else {
-        dispatch({ type: "SET_FOLDERS", payload: folders });
+        dispatch({ type: "SYNC_FOLDERS", payload: folders });
       }
     });
 
@@ -331,6 +410,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const newTask: Task = {
         ...task,
         id: genId(),
+        recurrence: task.recurrence || "none",
+        reminderMinutes: task.reminderMinutes ?? null,
         subtaskIds: [],
         order: state.tasks.length,
         createdAt: now,
@@ -400,9 +481,68 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         completedAt: completed ? new Date().toISOString() : null,
       };
       updateTask(id, updates);
+
+      // Auto-create next occurrence for recurring tasks when completed.
+      if (
+        completed &&
+        task.recurrence &&
+        task.recurrence !== "none" &&
+        task.dueDate
+      ) {
+        const nextDueDate = nextRecurringDate(task.dueDate, task.recurrence);
+        if (nextDueDate) {
+          addTask({
+            title: task.title,
+            description: task.description,
+            completed: false,
+            recurrence: task.recurrence,
+            reminderMinutes: task.reminderMinutes ?? null,
+            priority: task.priority,
+            dueDate: nextDueDate,
+            dueTime: task.dueTime ?? null,
+            tags: [...task.tags],
+            folderId: task.folderId,
+            parentId: task.parentId ?? null,
+            status: "todo",
+          });
+        }
+      }
     },
-    [state.tasks, updateTask],
+    [state.tasks, updateTask, addTask],
   );
+
+  // Browser reminders for due tasks.
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof Notification === "undefined")
+      return;
+    if (Notification.permission !== "granted") return;
+
+    const interval = window.setInterval(() => {
+      const now = Date.now();
+      state.tasks.forEach((task) => {
+        if (task.completed || !task.dueDate || task.reminderMinutes == null)
+          return;
+        const dueStr = `${task.dueDate}T${task.dueTime || "09:00"}:00`;
+        const dueTs = new Date(dueStr).getTime();
+        if (Number.isNaN(dueTs)) return;
+
+        const reminderTs = dueTs - task.reminderMinutes * 60_000;
+        const key = `zenflow-reminder-${task.id}-${task.dueDate}-${task.dueTime || ""}-${task.reminderMinutes}`;
+        if (
+          now >= reminderTs &&
+          now <= dueTs + 60_000 &&
+          !localStorage.getItem(key)
+        ) {
+          new Notification("Task reminder", {
+            body: `${task.title}${task.dueTime ? ` at ${task.dueTime}` : ""}`,
+          });
+          localStorage.setItem(key, "1");
+        }
+      });
+    }, 30_000);
+
+    return () => window.clearInterval(interval);
+  }, [state.tasks]);
 
   const addFolder = useCallback(
     (name: string, icon?: string, color?: string) => {
@@ -474,6 +614,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "SET_TASK_MODAL", payload: null });
   }, []);
 
+  const undo = useCallback(() => {
+    dispatch({ type: "UNDO" });
+  }, []);
+
+  const redo = useCallback(() => {
+    dispatch({ type: "REDO" });
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -489,6 +637,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         reorderTasks,
         openTaskModal,
         closeTaskModal,
+        undo,
+        redo,
       }}
     >
       {children}

@@ -1,34 +1,28 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Inbox,
-  FolderPlus,
-  ChevronDown,
-  ChevronRight,
+  FolderOpen,
   Sun,
   Moon,
   Monitor,
-  LayoutList,
-  Kanban,
-  CalendarDays,
   Flame,
   LogIn,
   LogOut,
-  Trash2,
-  Palette,
   Home,
   PanelLeftClose,
   PanelLeftOpen,
-  Pencil,
+  Download,
+  Upload,
+  Settings2,
 } from "lucide-react";
 import { useApp } from "@/store/AppContext";
 import { auth, googleProvider } from "@/lib/firebase";
 import { signInWithPopup, signOut } from "firebase/auth";
 import type { ThemeMode } from "@/lib/types";
-import ContextMenu, { useContextMenu, type MenuEntry } from "./ContextMenu";
 import { useDroppable } from "@dnd-kit/core";
 
 function DroppableFolder({
@@ -59,20 +53,25 @@ function DroppableFolder({
 }
 
 export default function Sidebar() {
-  const { state, dispatch, addFolder, deleteFolder, updateFolder, updateTask } = useApp();
+  const { state, dispatch } = useApp();
   const [collapsed, setCollapsed] = useState(false);
-  const [foldersOpen, setFoldersOpen] = useState(true);
-  const [newFolderName, setNewFolderName] = useState("");
-  const [showNewFolder, setShowNewFolder] = useState(false);
-  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
-  const [renamingValue, setRenamingValue] = useState("");
-  const {
-    menu: folderMenu,
-    handleContextMenu: handleFolderContextMenu,
-    closeMenu: closeFolderMenu,
-  } = useContextMenu();
-  const [contextFolderId, setContextFolderId] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
+  React.useEffect(() => {
+    if (!settingsOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        settingsRef.current &&
+        !settingsRef.current.contains(e.target as Node)
+      ) {
+        setSettingsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [settingsOpen]);
   const taskCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     state.tasks.forEach((t) => {
@@ -126,115 +125,68 @@ export default function Sidebar() {
     await signOut(auth);
   };
 
-  const handleAddFolder = () => {
-    if (newFolderName.trim()) {
-      addFolder(newFolderName.trim());
-      setNewFolderName("");
-      setShowNewFolder(false);
+  const handleExportBackup = () => {
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      folders: state.folders,
+      tasks: state.tasks,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `taskflow-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as {
+        folders?: typeof state.folders;
+        tasks?: typeof state.tasks;
+      };
+      if (!parsed.folders || !parsed.tasks) {
+        window.alert("Invalid backup file");
+        return;
+      }
+      dispatch({ type: "SET_FOLDERS", payload: parsed.folders });
+      dispatch({ type: "SET_TASKS", payload: parsed.tasks });
+      window.alert("Backup imported");
+    } catch {
+      window.alert("Import failed");
+    } finally {
+      e.target.value = "";
     }
   };
 
-  const FOLDER_COLORS = [
-    "#6366f1",
-    "#8b5cf6",
-    "#ec4899",
-    "#f59e0b",
-    "#10b981",
-    "#3b82f6",
-    "#ef4444",
-    "#14b8a6",
-  ];
-
-  const folderContextMenuItems = useMemo((): MenuEntry[] => {
-    if (!contextFolderId) return [];
-    const folder = state.folders.find((f) => f.id === contextFolderId);
-    if (!folder) return [];
-    const isInbox = folder.id === "inbox";
-
-    const items: MenuEntry[] = [
-      {
-        id: "open",
-        label: "Open folder",
-        icon: <Inbox size={14} />,
-        action: () => {
-          dispatch({ type: "SET_ACTIVE_FOLDER", payload: folder.id });
-          closeFolderMenu();
-        },
-      },
-    ];
-
-    if (!isInbox) {
-      items.push(
-        { id: "div1", type: "divider" },
-        {
-          id: "rename",
-          label: "Rename folder",
-          icon: <Pencil size={14} />,
-          action: () => {
-            setRenamingFolderId(folder.id);
-            setRenamingValue(folder.name);
-            closeFolderMenu();
-          },
-        },
-        {
-          id: "color",
-          label: "Change color",
-          icon: <Palette size={14} />,
-          children: FOLDER_COLORS.map((c) => ({
-            id: `color-${c}`,
-            label: c,
-            icon: (
-              <div className="w-3 h-3 rounded-full" style={{ background: c }} />
-            ),
-            action: () => {
-              updateFolder(folder.id, { color: c });
-              closeFolderMenu();
-            },
-          })),
-        },
-        { id: "div2", type: "divider" },
-        {
-          id: "delete",
-          label: "Delete folder",
-          icon: <Trash2 size={14} />,
-          danger: true,
-          action: () => {
-            deleteFolder(folder.id);
-            if (state.activeFolderId === folder.id) {
-              dispatch({ type: "SET_ACTIVE_FOLDER", payload: "inbox" });
-            }
-            closeFolderMenu();
-          },
-        },
-      );
-    }
-
-    return items;
-  }, [
-    contextFolderId,
-    state.folders,
-    state.activeFolderId,
-    dispatch,
-    deleteFolder,
-    updateFolder,
-    closeFolderMenu,
-  ]);
 
   return (
     <motion.aside
       initial={{ x: -280 }}
       animate={{ x: 0, width: collapsed ? 64 : 260 }}
       transition={{ duration: 0.2, ease: "easeInOut" }}
-      className="h-screen flex flex-col border-r shrink-0 overflow-hidden"
+      className="h-dvh flex flex-col border-r shrink-0 overflow-hidden"
       style={{
         background: "var(--color-surface)",
         borderColor: "var(--color-border)",
       }}
     >
       {/* Logo + Collapse toggle */}
-      <div className={`flex items-center ${collapsed ? "justify-center px-2 pt-4 pb-2" : "px-4 pt-5 pb-4"}`}>
-        {collapsed ? (
-          <button onClick={() => setCollapsed(false)} className="transition-opacity hover:opacity-70">
+      <div
+        className={`flex items-center ${collapsed ? "justify-center px-2 pt-4 pb-2" : "px-4 pt-5 pb-4"}`}
+      >
+        {collapsed ?
+          <button
+            onClick={() => setCollapsed(false)}
+            className="transition-opacity hover:opacity-70"
+          >
             <Image
               src="/favicon.png"
               alt="TaskFlow"
@@ -243,8 +195,7 @@ export default function Sidebar() {
               className="rounded-lg"
             />
           </button>
-        ) : (
-          <div className="flex items-center w-full gap-2">
+        : <div className="flex items-center w-full gap-2">
             <Image
               src="/Logo.png"
               alt="TaskFlow"
@@ -262,19 +213,27 @@ export default function Sidebar() {
               <PanelLeftClose size={18} />
             </button>
           </div>
-        )}
+        }
       </div>
 
       {/* Collapsed mode: icon-only nav */}
-      {collapsed ? (
+      {collapsed ?
         <>
           <nav className="flex-1 flex flex-col items-center gap-1 px-2 py-3">
             <button
-              onClick={() => dispatch({ type: "SET_VIEW_MODE", payload: "dashboard" })}
+              onClick={() =>
+                dispatch({ type: "SET_VIEW_MODE", payload: "dashboard" })
+              }
               className="p-2.5 rounded-lg transition-all"
               style={{
-                background: state.viewMode === "dashboard" ? "var(--color-accent-light)" : "transparent",
-                color: state.viewMode === "dashboard" ? "var(--color-accent)" : "var(--color-text-secondary)",
+                background:
+                  state.viewMode === "dashboard" ?
+                    "var(--color-accent-light)"
+                  : "transparent",
+                color:
+                  state.viewMode === "dashboard" ?
+                    "var(--color-accent)"
+                  : "var(--color-text-secondary)",
               }}
               title="Home"
             >
@@ -283,395 +242,442 @@ export default function Sidebar() {
             <button
               onClick={() => {
                 dispatch({ type: "SET_ACTIVE_FOLDER", payload: "inbox" });
-                if (state.viewMode === "dashboard") dispatch({ type: "SET_VIEW_MODE", payload: "list" });
+                if (
+                  state.viewMode === "dashboard" ||
+                  state.viewMode === "folders"
+                )
+                  dispatch({ type: "SET_VIEW_MODE", payload: "list" });
               }}
               className="p-2.5 rounded-lg transition-all"
               style={{
-                background: state.activeFolderId === "inbox" && state.viewMode !== "dashboard" ? "var(--color-accent-light)" : "transparent",
-                color: state.activeFolderId === "inbox" && state.viewMode !== "dashboard" ? "var(--color-accent)" : "var(--color-text-secondary)",
+                background:
+                  (
+                    state.activeFolderId === "inbox" &&
+                    state.viewMode !== "dashboard" &&
+                    state.viewMode !== "folders"
+                  ) ?
+                    "var(--color-accent-light)"
+                  : "transparent",
+                color:
+                  (
+                    state.activeFolderId === "inbox" &&
+                    state.viewMode !== "dashboard" &&
+                    state.viewMode !== "folders"
+                  ) ?
+                    "var(--color-accent)"
+                  : "var(--color-text-secondary)",
               }}
               title="Inbox"
             >
               <Inbox size={18} />
             </button>
-            {state.folders.filter(f => f.id !== "inbox").map(folder => (
-              <button
-                key={folder.id}
-                onClick={() => {
-                  dispatch({ type: "SET_ACTIVE_FOLDER", payload: folder.id });
-                  if (state.viewMode === "dashboard") dispatch({ type: "SET_VIEW_MODE", payload: "list" });
-                }}
-                className="p-2.5 rounded-lg transition-all"
-                style={{
-                  background: state.activeFolderId === folder.id && state.viewMode !== "dashboard" ? "var(--color-accent-light)" : "transparent",
-                  color: state.activeFolderId === folder.id && state.viewMode !== "dashboard" ? "var(--color-accent)" : "var(--color-text-secondary)",
-                }}
-                title={folder.name}
-              >
-                <div className="w-3 h-3 rounded-full" style={{ background: folder.color || "#6366f1" }} />
-              </button>
-            ))}
+            {/* Scrollable folder dots — max 7 visible */}
+            <div
+              className="overflow-y-auto flex flex-col items-center gap-1 w-full"
+              style={{ maxHeight: "calc(7 * 44px)" }}
+            >
+              {state.folders
+                .filter((f) => f.id !== "inbox")
+                .map((folder) => (
+                  <button
+                    key={folder.id}
+                    onClick={() => {
+                      dispatch({
+                        type: "SET_ACTIVE_FOLDER",
+                        payload: folder.id,
+                      });
+                      if (state.viewMode === "dashboard")
+                        dispatch({ type: "SET_VIEW_MODE", payload: "list" });
+                    }}
+                    className="p-2.5 rounded-lg transition-all"
+                    style={{
+                      background:
+                        (
+                          state.activeFolderId === folder.id &&
+                          state.viewMode !== "dashboard"
+                        ) ?
+                          "var(--color-accent-light)"
+                        : "transparent",
+                      color:
+                        (
+                          state.activeFolderId === folder.id &&
+                          state.viewMode !== "dashboard"
+                        ) ?
+                          "var(--color-accent)"
+                        : "var(--color-text-secondary)",
+                    }}
+                    title={folder.name}
+                  >
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ background: folder.color || "#6366f1" }}
+                    />
+                  </button>
+                ))}
+            </div>
           </nav>
 
-          {/* Collapsed bottom: view mode icons + theme */}
-          <div className="p-2 border-t flex flex-col items-center gap-1" style={{ borderColor: "var(--color-border)" }}>
-            <button onClick={() => dispatch({ type: "SET_VIEW_MODE", payload: "list" })} className="p-2 rounded-lg transition-all" style={{ color: state.viewMode === "list" ? "var(--color-accent)" : "var(--color-text-tertiary)" }} title="List view"><LayoutList size={16} /></button>
-            <button onClick={() => dispatch({ type: "SET_VIEW_MODE", payload: "kanban" })} className="p-2 rounded-lg transition-all" style={{ color: state.viewMode === "kanban" ? "var(--color-accent)" : "var(--color-text-tertiary)" }} title="Board view"><Kanban size={16} /></button>
-            <button onClick={() => dispatch({ type: "SET_VIEW_MODE", payload: "calendar" })} className="p-2 rounded-lg transition-all" style={{ color: state.viewMode === "calendar" ? "var(--color-accent)" : "var(--color-text-tertiary)" }} title="Calendar view"><CalendarDays size={16} /></button>
-            <button onClick={cycleTheme} className="p-2 rounded-lg transition-all" style={{ color: "var(--color-text-tertiary)" }} title={`Theme: ${state.theme}`}>{themeIcons[state.theme]}</button>
-            <button onClick={() => setCollapsed(false)} className="p-2 rounded-lg transition-all" style={{ color: "var(--color-text-tertiary)" }} title="Expand sidebar"><PanelLeftOpen size={16} /></button>
+          {/* Collapsed bottom: settings */}
+          <div
+            className="p-2 border-t flex flex-col items-center gap-1"
+            style={{ borderColor: "var(--color-border)" }}
+          >
+            <div className="relative" ref={settingsRef}>
+              <button
+                onClick={() => setSettingsOpen((o) => !o)}
+                className="p-2 rounded-lg transition-all"
+                style={{
+                  color:
+                    settingsOpen ?
+                      "var(--color-accent)"
+                    : "var(--color-text-tertiary)",
+                  background:
+                    settingsOpen ? "var(--color-accent-light)" : "transparent",
+                }}
+                title="Settings"
+              >
+                <Settings2 size={16} />
+              </button>
+              <AnimatePresence>
+                {settingsOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -6, scale: 0.96 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: -6, scale: 0.96 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute bottom-0 left-full ml-2 w-52 rounded-xl overflow-hidden z-50"
+                    style={{
+                      background: "var(--color-surface)",
+                      border: "1px solid var(--color-border)",
+                      boxShadow: "var(--glass-shadow)",
+                    }}
+                  >
+                    <div
+                      className="px-4 py-2 text-xs font-semibold tracking-wide uppercase"
+                      style={{ color: "var(--color-text-tertiary)" }}
+                    >
+                      Settings
+                    </div>
+                    <div
+                      className="h-px"
+                      style={{ background: "var(--color-border)" }}
+                    />
+                    <button
+                      onClick={() => {
+                        handleExportBackup();
+                        setSettingsOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
+                      style={{ color: "var(--color-text-secondary)" }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background =
+                          "var(--color-accent-light)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = "transparent")
+                      }
+                    >
+                      <Download size={13} />
+                      <span>Export backup</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        importInputRef.current?.click();
+                        setSettingsOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
+                      style={{ color: "var(--color-text-secondary)" }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background =
+                          "var(--color-accent-light)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = "transparent")
+                      }
+                    >
+                      <Upload size={13} />
+                      <span>Import backup</span>
+                    </button>
+                    <div
+                      className="h-px mx-3"
+                      style={{ background: "var(--color-border)" }}
+                    />
+                    <button
+                      onClick={cycleTheme}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
+                      style={{ color: "var(--color-text-secondary)" }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background =
+                          "var(--color-accent-light)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = "transparent")
+                      }
+                    >
+                      {themeIcons[state.theme]}
+                      <span className="capitalize">{state.theme} mode</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            <button
+              onClick={() => setCollapsed(false)}
+              className="p-2 rounded-lg transition-all"
+              style={{ color: "var(--color-text-tertiary)" }}
+              title="Expand sidebar"
+            >
+              <PanelLeftOpen size={16} />
+            </button>
           </div>
         </>
-      ) : (
-      <>
-
-      {/* Streak */}
-      {streak > 0 && (
-        <div
-          className="mx-4 mb-2 px-3 py-2 rounded-xl flex items-center gap-2 text-xs font-medium"
-          style={{
-            background: "var(--color-accent-light)",
-            color: "var(--color-accent)",
-          }}
-        >
-          <Flame size={14} />
-          <span>{streak} day streak!</span>
-        </div>
-      )}
-
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5">
-        {/* Home / Dashboard */}
-        <button
-          onClick={() =>
-            dispatch({ type: "SET_VIEW_MODE", payload: "dashboard" })
-          }
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150"
-          style={{
-            background:
-              state.viewMode === "dashboard" ?
-                "var(--color-accent-light)"
-              : "transparent",
-            color:
-              state.viewMode === "dashboard" ?
-                "var(--color-accent)"
-              : "var(--color-text-secondary)",
-          }}
-        >
-          <Home size={16} />
-          <span className="flex-1 text-left">Home</span>
-        </button>
-
-        {/* Inbox */}
-        <DroppableFolder id="inbox">
-          <button
-            onClick={() => {
-              dispatch({ type: "SET_ACTIVE_FOLDER", payload: "inbox" });
-              if (state.viewMode === "dashboard")
-                dispatch({ type: "SET_VIEW_MODE", payload: "list" });
-            }}
-            onContextMenu={(e) => {
-              setContextFolderId("inbox");
-              handleFolderContextMenu(e);
-            }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150"
-            style={{
-              background:
-                (
-                  state.activeFolderId === "inbox" &&
-                  state.viewMode !== "dashboard"
-                ) ?
-                  "var(--color-accent-light)"
-                : "transparent",
-              color:
-                (
-                  state.activeFolderId === "inbox" &&
-                  state.viewMode !== "dashboard"
-                ) ?
-                  "var(--color-accent)"
-                : "var(--color-text-secondary)",
-            }}
-          >
-            <Inbox size={16} />
-            <span className="flex-1 text-left">Inbox</span>
-            {taskCounts["inbox"] && (
-              <span className="text-xs font-medium opacity-70">
-                {taskCounts["inbox"]}
-              </span>
-            )}
-          </button>
-        </DroppableFolder>
-
-        {/* Folders section */}
-        <div className="pt-3">
-          <button
-            onClick={() => setFoldersOpen(!foldersOpen)}
-            className="w-full flex items-center gap-1 px-3 py-1.5 text-xs font-medium uppercase tracking-wider"
-            style={{ color: "var(--color-text-tertiary)" }}
-          >
-            {foldersOpen ?
-              <ChevronDown size={12} />
-            : <ChevronRight size={12} />}
-            Folders
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowNewFolder(true);
+      : <>
+          {/* Nav */}
+          <nav className="flex-1 overflow-y-auto flex flex-col px-3 py-2 space-y-0.5">
+            {/* Home / Dashboard */}
+            <button
+              onClick={() =>
+                dispatch({ type: "SET_VIEW_MODE", payload: "dashboard" })
+              }
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150"
+              style={{
+                background:
+                  state.viewMode === "dashboard" ?
+                    "var(--color-accent-light)"
+                  : "transparent",
+                color:
+                  state.viewMode === "dashboard" ?
+                    "var(--color-accent)"
+                  : "var(--color-text-secondary)",
               }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.stopPropagation();
-                  setShowNewFolder(true);
-                }
-              }}
-              className="ml-auto hover:opacity-70 transition-opacity cursor-pointer"
             >
-              <FolderPlus size={14} />
-            </span>
-          </button>
+              <Home size={16} />
+              <span className="flex-1 text-left">Home</span>
+            </button>
 
-          <AnimatePresence>
-            {foldersOpen && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
+            {/* Inbox */}
+            <DroppableFolder id="inbox">
+              <button
+                onClick={() => {
+                  dispatch({ type: "SET_ACTIVE_FOLDER", payload: "inbox" });
+                  if (
+                    state.viewMode === "dashboard" ||
+                    state.viewMode === "folders"
+                  )
+                    dispatch({ type: "SET_VIEW_MODE", payload: "list" });
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150"
+                style={{
+                  background:
+                    (
+                      state.activeFolderId === "inbox" &&
+                      state.viewMode !== "dashboard" &&
+                      state.viewMode !== "folders"
+                    ) ?
+                      "var(--color-accent-light)"
+                    : "transparent",
+                  color:
+                    (
+                      state.activeFolderId === "inbox" &&
+                      state.viewMode !== "dashboard" &&
+                      state.viewMode !== "folders"
+                    ) ?
+                      "var(--color-accent)"
+                    : "var(--color-text-secondary)",
+                }}
               >
-                {state.folders
-                  .filter((f) => f.id !== "inbox")
-                  .map((folder) => (
-                    <DroppableFolder key={folder.id} id={folder.id}>
+                <Inbox size={16} />
+                <span className="flex-1 text-left">Inbox</span>
+                {taskCounts["inbox"] && (
+                  <span className="text-xs font-medium opacity-70">
+                    {taskCounts["inbox"]}
+                  </span>
+                )}
+              </button>
+            </DroppableFolder>
+
+            {/* Folders nav item */}
+            <button
+              onClick={() =>
+                dispatch({ type: "SET_VIEW_MODE", payload: "folders" })
+              }
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150"
+              style={{
+                background:
+                  state.viewMode === "folders" ?
+                    "var(--color-accent-light)"
+                  : "transparent",
+                color:
+                  state.viewMode === "folders" ?
+                    "var(--color-accent)"
+                  : "var(--color-text-secondary)",
+              }}
+            >
+              <FolderOpen size={16} />
+              <span className="flex-1 text-left">Folders</span>
+              {state.folders.filter((f) => f.id !== "inbox").length > 0 && (
+                <span className="text-xs font-medium opacity-70">
+                  {state.folders.filter((f) => f.id !== "inbox").length}
+                </span>
+              )}
+            </button>
+          </nav>
+
+          {/* Bottom bar */}
+          <div
+            className="p-3 border-t space-y-1"
+            style={{ borderColor: "var(--color-border)" }}
+          >
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json"
+              onChange={handleImportBackup}
+              className="hidden"
+            />
+
+            {/* Streak */}
+            {streak > 0 && (
+              <div
+                className="mb-2 px-3 py-2 rounded-xl flex items-center gap-2 text-xs font-medium"
+                style={{
+                  background: "var(--color-accent-light)",
+                  color: "var(--color-accent)",
+                }}
+              >
+                <Flame size={14} />
+                <span>{streak} day streak!</span>
+              </div>
+            )}
+
+            {/* Settings & Auth */}
+            <div className="flex items-center gap-1">
+              <div className="relative" ref={settingsRef}>
+                <button
+                  onClick={() => setSettingsOpen((o) => !o)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs transition-colors"
+                  style={{
+                    color:
+                      settingsOpen ?
+                        "var(--color-accent)"
+                      : "var(--color-text-secondary)",
+                    background:
+                      settingsOpen ?
+                        "var(--color-accent-light)"
+                      : "transparent",
+                  }}
+                  title="Settings"
+                >
+                  <Settings2 size={13} />
+                  <span>Settings</span>
+                </button>
+                <AnimatePresence>
+                  {settingsOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute bottom-full left-0 mb-2 w-52 rounded-xl overflow-hidden z-50"
+                      style={{
+                        background: "var(--color-surface)",
+                        border: "1px solid var(--color-border)",
+                        boxShadow: "var(--glass-shadow)",
+                      }}
+                    >
+                      <div
+                        className="px-4 py-2 text-xs font-semibold tracking-wide uppercase"
+                        style={{ color: "var(--color-text-tertiary)" }}
+                      >
+                        Settings
+                      </div>
+                      <div
+                        className="h-px"
+                        style={{ background: "var(--color-border)" }}
+                      />
                       <button
                         onClick={() => {
-                          dispatch({
-                            type: "SET_ACTIVE_FOLDER",
-                            payload: folder.id,
-                          });
-                          if (state.viewMode === "dashboard")
-                            dispatch({
-                              type: "SET_VIEW_MODE",
-                              payload: "list",
-                            });
+                          handleExportBackup();
+                          setSettingsOpen(false);
                         }}
-                        onContextMenu={(e) => {
-                          setContextFolderId(folder.id);
-                          handleFolderContextMenu(e);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150 group"
-                        style={{
-                          background:
-                            (
-                              state.activeFolderId === folder.id &&
-                              state.viewMode !== "dashboard"
-                            ) ?
-                              "var(--color-accent-light)"
-                            : "transparent",
-                          color:
-                            (
-                              state.activeFolderId === folder.id &&
-                              state.viewMode !== "dashboard"
-                            ) ?
-                              "var(--color-accent)"
-                            : "var(--color-text-secondary)",
-                        }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
+                        style={{ color: "var(--color-text-secondary)" }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background =
+                            "var(--color-accent-light)")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = "transparent")
+                        }
                       >
-                        <div
-                          className="w-2 h-2 rounded-full"
-                          style={{ background: folder.color || "#6366f1" }}
-                        />
-                        {renamingFolderId === folder.id ? (
-                          <input
-                            autoFocus
-                            value={renamingValue}
-                            onChange={(e) => setRenamingValue(e.target.value)}
-                            onKeyDown={(e) => {
-                              e.stopPropagation();
-                              if (e.key === "Enter") {
-                                const trimmed = renamingValue.trim();
-                                if (trimmed) updateFolder(folder.id, { name: trimmed });
-                                setRenamingFolderId(null);
-                              }
-                              if (e.key === "Escape") setRenamingFolderId(null);
-                            }}
-                            onBlur={() => {
-                              const trimmed = renamingValue.trim();
-                              if (trimmed) updateFolder(folder.id, { name: trimmed });
-                              setRenamingFolderId(null);
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex-1 text-sm bg-transparent outline-none border-b"
-                            style={{ borderColor: "var(--color-accent)", color: "inherit" }}
-                          />
-                        ) : (
-                          <span className="flex-1 text-left truncate">
-                            {folder.name}
-                          </span>
-                        )}
-                        {taskCounts[folder.id] && (
-                          <span className="text-xs font-medium opacity-70">
-                            {taskCounts[folder.id]}
-                          </span>
-                        )}
+                        <Download size={13} />
+                        <span>Export backup</span>
                       </button>
-                    </DroppableFolder>
-                  ))}
-
-                {/* New folder input */}
-                <AnimatePresence>
-                  {showNewFolder && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="px-3 py-1"
-                    >
-                      <input
-                        autoFocus
-                        value={newFolderName}
-                        onChange={(e) => setNewFolderName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleAddFolder();
-                          if (e.key === "Escape") setShowNewFolder(false);
+                      <button
+                        onClick={() => {
+                          importInputRef.current?.click();
+                          setSettingsOpen(false);
                         }}
-                        onBlur={() => {
-                          if (!newFolderName) setShowNewFolder(false);
-                        }}
-                        placeholder="Folder name..."
-                        className="w-full px-2 py-1.5 text-sm rounded-md border"
-                        style={{
-                          background: "var(--color-background)",
-                          borderColor: "var(--color-border)",
-                          color: "var(--color-text-primary)",
-                        }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
+                        style={{ color: "var(--color-text-secondary)" }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background =
+                            "var(--color-accent-light)")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = "transparent")
+                        }
+                      >
+                        <Upload size={13} />
+                        <span>Import backup</span>
+                      </button>
+                      <div
+                        className="h-px mx-3"
+                        style={{ background: "var(--color-border)" }}
                       />
+                      <button
+                        onClick={cycleTheme}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
+                        style={{ color: "var(--color-text-secondary)" }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background =
+                            "var(--color-accent-light)")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = "transparent")
+                        }
+                      >
+                        {themeIcons[state.theme]}
+                        <span className="capitalize">{state.theme} mode</span>
+                      </button>
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </nav>
+              </div>
+              <div className="flex-1" />
+              {state.user ?
+                <button
+                  onClick={handleSignOut}
+                  className="p-2 rounded-lg transition-colors"
+                  style={{ color: "var(--color-text-tertiary)" }}
+                  title="Sign out"
+                >
+                  <LogOut size={14} />
+                </button>
+              : <button
+                  onClick={handleSignIn}
+                  className="p-2 rounded-lg transition-colors"
+                  style={{ color: "var(--color-text-tertiary)" }}
+                  title="Sign in with Google"
+                >
+                  <LogIn size={14} />
+                </button>
+              }
+            </div>
+          </div>
+        </>
+      }
 
-      {/* Bottom bar */}
-      <div
-        className="p-3 border-t space-y-1"
-        style={{ borderColor: "var(--color-border)" }}
-      >
-        {/* View mode toggle */}
-        <div
-          className="flex items-center gap-1 p-1 rounded-lg"
-          style={{ background: "var(--color-background)" }}
-        >
-          <button
-            onClick={() => dispatch({ type: "SET_VIEW_MODE", payload: "list" })}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-all"
-            style={{
-              background:
-                state.viewMode === "list" ?
-                  "var(--color-surface)"
-                : "transparent",
-              color:
-                state.viewMode === "list" ?
-                  "var(--color-text-primary)"
-                : "var(--color-text-tertiary)",
-              boxShadow:
-                state.viewMode === "list" ? "var(--glass-shadow)" : "none",
-            }}
-          >
-            <LayoutList size={13} /> List
-          </button>
-          <button
-            onClick={() =>
-              dispatch({ type: "SET_VIEW_MODE", payload: "kanban" })
-            }
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-all"
-            style={{
-              background:
-                state.viewMode === "kanban" ?
-                  "var(--color-surface)"
-                : "transparent",
-              color:
-                state.viewMode === "kanban" ?
-                  "var(--color-text-primary)"
-                : "var(--color-text-tertiary)",
-              boxShadow:
-                state.viewMode === "kanban" ? "var(--glass-shadow)" : "none",
-            }}
-          >
-            <Kanban size={13} /> Board
-          </button>
-          <button
-            onClick={() =>
-              dispatch({ type: "SET_VIEW_MODE", payload: "calendar" })
-            }
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-all"
-            style={{
-              background:
-                state.viewMode === "calendar" ?
-                  "var(--color-surface)"
-                : "transparent",
-              color:
-                state.viewMode === "calendar" ?
-                  "var(--color-text-primary)"
-                : "var(--color-text-tertiary)",
-              boxShadow:
-                state.viewMode === "calendar" ? "var(--glass-shadow)" : "none",
-            }}
-          >
-            <CalendarDays size={13} /> Cal
-          </button>
-        </div>
-
-        {/* Theme & Auth */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={cycleTheme}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs transition-colors"
-            style={{ color: "var(--color-text-secondary)" }}
-          >
-            {themeIcons[state.theme]}
-            <span className="capitalize">{state.theme}</span>
-          </button>
-          <div className="flex-1" />
-          {state.user ?
-            <button
-              onClick={handleSignOut}
-              className="p-2 rounded-lg transition-colors"
-              style={{ color: "var(--color-text-tertiary)" }}
-              title="Sign out"
-            >
-              <LogOut size={14} />
-            </button>
-          : <button
-              onClick={handleSignIn}
-              className="p-2 rounded-lg transition-colors"
-              style={{ color: "var(--color-text-tertiary)" }}
-              title="Sign in with Google"
-            >
-              <LogIn size={14} />
-            </button>
-          }
-        </div>
-      </div>
-
-      </>
-      )}
-
-      {/* Folder context menu */}
-      <AnimatePresence>
-        {folderMenu && (
-          <ContextMenu
-            x={folderMenu.x}
-            y={folderMenu.y}
-            items={folderContextMenuItems}
-            onClose={closeFolderMenu}
-          />
-        )}
-      </AnimatePresence>
     </motion.aside>
   );
 }
