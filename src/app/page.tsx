@@ -25,6 +25,7 @@ import CommandPalette from "@/components/CommandPalette";
 import FocusMode from "@/components/FocusMode";
 import ProductivityPanel from "@/components/ProductivityPanel";
 import TaskModal from "@/components/TaskModal";
+import LandingPage from "@/components/LandingPage";
 import {
   DndContext,
   DragEndEvent,
@@ -264,6 +265,18 @@ export default function Home() {
 
   const draggingTask =
     draggingTaskId ? state.tasks.find((t) => t.id === draggingTaskId) : null;
+
+  // Show landing page for unauthenticated users
+  if (!state.user) {
+    return (
+      <LandingPage
+        onGetStarted={() => {
+          // Trigger sign in from Sidebar
+          dispatch({ type: "SET_VIEW_MODE", payload: "dashboard" });
+        }}
+      />
+    );
+  }
 
   return (
     <DndContext

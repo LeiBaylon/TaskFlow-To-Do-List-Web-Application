@@ -166,7 +166,6 @@ export default function Sidebar() {
     }
   };
 
-
   return (
     <motion.aside
       initial={{ x: -280 }}
@@ -677,7 +676,6 @@ export default function Sidebar() {
           </div>
         </>
       }
-
     </motion.aside>
   );
 }
