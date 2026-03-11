@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   motion,
   AnimatePresence,
@@ -36,32 +37,13 @@ import {
   Smartphone,
   TrendingUp,
 } from "lucide-react";
-import { auth, googleProvider } from "@/lib/firebase";
-import {
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  signOut,
-  updateProfile,
-} from "firebase/auth";
-import type { FirebaseError } from "firebase/app";
+
 
 const LandingPage: React.FC<{ onGetStarted?: () => void }> = ({
   onGetStarted,
 }) => {
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<"login" | "register">("login");
-  const [authForm, setAuthForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-  });
-  const [authBusy, setAuthBusy] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [featureModalOpen, setFeatureModalOpen] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState<string | null>(null);
   const mousePositionRef = useRef({ x: 0, y: 0 });
@@ -92,208 +74,7 @@ const LandingPage: React.FC<{ onGetStarted?: () => void }> = ({
 
   const handleGetStarted = () => {
     onGetStarted?.();
-    setAuthMode("register");
-    setAuthError(null);
-    setAuthNotice(null);
-    setAuthModalOpen(true);
-  };
-
-  const openAuthModal = (mode: "login" | "register") => {
-    onGetStarted?.();
-    setAuthMode(mode);
-    setAuthError(null);
-    setAuthNotice(null);
-    setAuthModalOpen(true);
-  };
-
-  const closeAuthModal = () => {
-    if (authBusy) return;
-    setAuthModalOpen(false);
-    setAuthError(null);
-    setAuthNotice(null);
-  };
-
-  const mapAuthError = (
-    err: unknown,
-    mode: "login" | "register" | "google" | "reset" | "verify",
-  ) => {
-    const code = (err as FirebaseError | undefined)?.code ?? "";
-    switch (code) {
-      case "auth/email-already-in-use":
-        return "Register failed: this email is already in use. Try logging in.";
-      case "auth/invalid-email":
-        return "Please enter a valid email address.";
-      case "auth/weak-password":
-        return "Register failed: password is too weak. Use at least 6 characters.";
-      case "auth/user-not-found":
-      case "auth/wrong-password":
-      case "auth/invalid-credential":
-        return mode === "login" ?
-            "Login failed: invalid email or password."
-          : "Could not verify your credentials.";
-      case "auth/too-many-requests":
-        return "Too many attempts right now. Please wait a moment and try again.";
-      case "auth/network-request-failed":
-        return "Network error. Check your connection and try again.";
-      case "auth/user-disabled":
-        return "This account has been disabled. Contact support.";
-      case "auth/popup-closed-by-user":
-        return "Google sign-in was canceled before completion.";
-      default:
-        if (mode === "register")
-          return "Could not create your account right now.";
-        if (mode === "google")
-          return "Google sign-in failed. Please try again.";
-        if (mode === "reset") return "Could not send reset email right now.";
-        if (mode === "verify")
-          return "Could not send verification email right now.";
-        return "Could not sign you in right now.";
-    }
-  };
-
-  const getPasswordStrength = (password: string) => {
-    if (!password) return { score: 0, label: "", color: "bg-white/10" };
-    let score = 0;
-    if (password.length >= 8) score += 1;
-    if (/[A-Z]/.test(password)) score += 1;
-    if (/[0-9]/.test(password)) score += 1;
-    if (/[^A-Za-z0-9]/.test(password)) score += 1;
-
-    if (score <= 1) return { score, label: "Weak", color: "bg-red-400" };
-    if (score <= 3) return { score, label: "Medium", color: "bg-amber-400" };
-    return { score, label: "Strong", color: "bg-emerald-400" };
-  };
-
-  const passwordStrength = getPasswordStrength(authForm.password);
-
-  const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!auth) {
-      setAuthError("Authentication is not configured yet.");
-      return;
-    }
-
-    setAuthBusy(true);
-    setAuthError(null);
-    setAuthNotice(null);
-    try {
-      if (authMode === "register") {
-        const cred = await createUserWithEmailAndPassword(
-          auth,
-          authForm.email.trim(),
-          authForm.password,
-        );
-        const displayName = authForm.name.trim();
-        if (displayName) {
-          await updateProfile(cred.user, { displayName });
-        }
-        await sendEmailVerification(cred.user);
-        await signOut(auth);
-
-        setAuthMode("login");
-        setAuthForm((prev) => ({ ...prev, password: "" }));
-        setAuthNotice(
-          "Account created. We sent a verification email. Please verify before logging in.",
-        );
-      } else {
-        const cred = await signInWithEmailAndPassword(
-          auth,
-          authForm.email.trim(),
-          authForm.password,
-        );
-
-        if (!cred.user.emailVerified) {
-          await sendEmailVerification(cred.user);
-          await signOut(auth);
-          setAuthNotice(
-            "Please verify your email first. We just sent a new verification link.",
-          );
-          return;
-        }
-
-        setAuthModalOpen(false);
-        setAuthForm({ name: "", email: "", password: "" });
-      }
-    } catch (err) {
-      setAuthError(mapAuthError(err, authMode));
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    if (!auth) {
-      setAuthError("Authentication is not configured yet.");
-      return;
-    }
-    const email = authForm.email.trim();
-    if (!email) {
-      setAuthError("Enter your email above first, then click Forgot password.");
-      return;
-    }
-
-    setAuthBusy(true);
-    setAuthError(null);
-    setAuthNotice(null);
-    try {
-      await sendPasswordResetEmail(auth, email);
-      setAuthNotice("Password reset email sent. Check your inbox.");
-    } catch (err) {
-      setAuthError(mapAuthError(err, "reset"));
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  const handleResendVerification = async () => {
-    if (!auth) {
-      setAuthError("Authentication is not configured yet.");
-      return;
-    }
-    const email = authForm.email.trim();
-    const password = authForm.password;
-    if (!email || !password) {
-      setAuthError(
-        "Enter your email and password, then click Resend verification.",
-      );
-      return;
-    }
-
-    setAuthBusy(true);
-    setAuthError(null);
-    setAuthNotice(null);
-    try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      if (cred.user.emailVerified) {
-        setAuthNotice("Your email is already verified. You can log in now.");
-        return;
-      }
-      await sendEmailVerification(cred.user);
-      await signOut(auth);
-      setAuthNotice("Verification email sent again. Please check your inbox.");
-    } catch (err) {
-      setAuthError(mapAuthError(err, "verify"));
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    if (!auth || !googleProvider) {
-      setAuthError("Google sign-in is not configured yet.");
-      return;
-    }
-    setAuthBusy(true);
-    setAuthError(null);
-    setAuthNotice(null);
-    try {
-      await signInWithPopup(auth, googleProvider);
-      setAuthModalOpen(false);
-    } catch (err) {
-      setAuthError(mapAuthError(err, "google"));
-    } finally {
-      setAuthBusy(false);
-    }
+    router.push("/auth?mode=register");
   };
 
   // Animated blob background
@@ -664,7 +445,7 @@ const LandingPage: React.FC<{ onGetStarted?: () => void }> = ({
             {/* Auth buttons */}
             <div className="hidden md:flex items-center gap-2">
               <motion.button
-                onClick={() => openAuthModal("login")}
+                onClick={() => router.push("/auth?mode=login")}
                 className="px-4 py-2 rounded-lg font-semibold border border-white/20 bg-white/5 hover:bg-white/10 transition-colors"
                 whileHover={{ scale: 1.03, y: -1 }}
                 whileTap={{ scale: 0.97 }}
@@ -672,7 +453,7 @@ const LandingPage: React.FC<{ onGetStarted?: () => void }> = ({
                 Sign In
               </motion.button>
               <motion.button
-                onClick={() => openAuthModal("register")}
+                onClick={() => router.push("/auth?mode=register")}
                 className="px-5 py-2 rounded-lg font-semibold bg-linear-to-r from-purple-500 to-blue-500 hover:shadow-lg hover:shadow-purple-500/50 transition-all"
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
@@ -705,7 +486,7 @@ const LandingPage: React.FC<{ onGetStarted?: () => void }> = ({
                   <div className="grid grid-cols-2 gap-2 pt-2">
                     <motion.button
                       onClick={() => {
-                        openAuthModal("login");
+                        router.push("/auth?mode=login");
                         setMobileMenuOpen(false);
                       }}
                       className="w-full px-3 py-2 rounded-lg font-semibold border border-white/20 bg-white/5 hover:bg-white/10 transition-colors"
@@ -715,7 +496,7 @@ const LandingPage: React.FC<{ onGetStarted?: () => void }> = ({
                     </motion.button>
                     <motion.button
                       onClick={() => {
-                        openAuthModal("register");
+                        router.push("/auth?mode=register");
                         setMobileMenuOpen(false);
                       }}
                       className="w-full px-3 py-2 rounded-lg font-semibold bg-linear-to-r from-purple-500 to-blue-500"
@@ -1540,239 +1321,6 @@ const LandingPage: React.FC<{ onGetStarted?: () => void }> = ({
       </motion.footer>
 
       <AnimatePresence>
-        {authModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-80 bg-black/60 backdrop-blur-sm p-4 flex items-center justify-center"
-            onClick={closeAuthModal}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.98 }}
-              transition={{ duration: 0.2 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-2xl border border-white/15 bg-linear-to-br from-slate-900/95 to-purple-900/80 p-6 md:p-7"
-            >
-              <div className="flex items-center justify-between mb-5">
-                <h3 className="text-2xl font-bold">
-                  {authMode === "login" ? "Welcome Back" : "Create Account"}
-                </h3>
-                <button
-                  type="button"
-                  onClick={closeAuthModal}
-                  className="p-1.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="mb-5 rounded-xl bg-white/5 p-1 grid grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode("login");
-                    setAuthError(null);
-                    setAuthNotice(null);
-                  }}
-                  className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    authMode === "login" ?
-                      "bg-white/15 text-white"
-                    : "text-gray-300"
-                  }`}
-                >
-                  Login
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode("register");
-                    setAuthError(null);
-                    setAuthNotice(null);
-                  }}
-                  className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    authMode === "register" ?
-                      "bg-white/15 text-white"
-                    : "text-gray-300"
-                  }`}
-                >
-                  Register
-                </button>
-              </div>
-
-              <form className="space-y-4" onSubmit={handleAuthSubmit}>
-                {authMode === "register" && (
-                  <div>
-                    <label
-                      htmlFor="auth-name"
-                      className="block text-sm text-gray-300 mb-1.5"
-                    >
-                      Full Name
-                    </label>
-                    <input
-                      id="auth-name"
-                      type="text"
-                      value={authForm.name}
-                      onChange={(e) =>
-                        setAuthForm((prev) => ({
-                          ...prev,
-                          name: e.target.value,
-                        }))
-                      }
-                      placeholder="Jane Doe"
-                      className="w-full rounded-xl bg-black/30 border border-white/15 px-4 py-2.5 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-400 transition-colors"
-                      required={authMode === "register"}
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label
-                    htmlFor="auth-email"
-                    className="block text-sm text-gray-300 mb-1.5"
-                  >
-                    Email
-                  </label>
-                  <input
-                    id="auth-email"
-                    type="email"
-                    value={authForm.email}
-                    onChange={(e) =>
-                      setAuthForm((prev) => ({
-                        ...prev,
-                        email: e.target.value,
-                      }))
-                    }
-                    placeholder="you@example.com"
-                    className="w-full rounded-xl bg-black/30 border border-white/15 px-4 py-2.5 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-400 transition-colors"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="auth-password"
-                    className="block text-sm text-gray-300 mb-1.5"
-                  >
-                    Password
-                  </label>
-                  <input
-                    id="auth-password"
-                    type="password"
-                    value={authForm.password}
-                    onChange={(e) =>
-                      setAuthForm((prev) => ({
-                        ...prev,
-                        password: e.target.value,
-                      }))
-                    }
-                    placeholder="At least 6 characters"
-                    className="w-full rounded-xl bg-black/30 border border-white/15 px-4 py-2.5 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-400 transition-colors"
-                    minLength={6}
-                    required
-                  />
-                  {authMode === "register" && authForm.password && (
-                    <div className="mt-2">
-                      <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
-                        <div
-                          className={`h-full ${passwordStrength.color} transition-all`}
-                          style={{
-                            width: `${Math.max(20, passwordStrength.score * 25)}%`,
-                          }}
-                        />
-                      </div>
-                      <p className="mt-1 text-xs text-gray-300">
-                        Password strength: {passwordStrength.label}
-                      </p>
-                    </div>
-                  )}
-                  {authMode === "login" && (
-                    <div className="mt-2 flex items-center gap-4">
-                      <button
-                        type="button"
-                        onClick={handleForgotPassword}
-                        disabled={authBusy}
-                        className="text-xs text-purple-300 hover:text-purple-200 transition-colors disabled:opacity-60"
-                      >
-                        Forgot password?
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleResendVerification}
-                        disabled={authBusy}
-                        className="text-xs text-cyan-300 hover:text-cyan-200 transition-colors disabled:opacity-60"
-                      >
-                        Resend verification
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {authNotice && (
-                  <p className="text-sm text-cyan-200 bg-cyan-500/10 border border-cyan-500/30 px-3 py-2 rounded-lg">
-                    {authNotice}
-                  </p>
-                )}
-
-                {authError && (
-                  <p className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 px-3 py-2 rounded-lg">
-                    {authError}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={authBusy}
-                  className="w-full rounded-xl px-4 py-2.5 font-semibold bg-linear-to-r from-purple-500 to-blue-500 hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {authBusy ?
-                    "Please wait..."
-                  : authMode === "login" ?
-                    "Login"
-                  : "Create Account"}
-                </button>
-              </form>
-
-              <div className="my-4 flex items-center gap-3">
-                <div className="h-px bg-white/15 flex-1" />
-                <span className="text-xs uppercase tracking-wide text-gray-400">
-                  or
-                </span>
-                <div className="h-px bg-white/15 flex-1" />
-              </div>
-
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={authBusy}
-                className="w-full rounded-xl px-4 py-2.5 font-medium border border-white/20 bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                  <path
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-                    fill="#4285F4"
-                  />
-                  <path
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    fill="#34A853"
-                  />
-                  <path
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                    fill="#FBBC05"
-                  />
-                  <path
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                    fill="#EA4335"
-                  />
-                </svg>
-                Continue with Google
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-
         {/* Feature Modal */}
         {featureModalOpen &&
           selectedFeature &&
@@ -1865,7 +1413,7 @@ const LandingPage: React.FC<{ onGetStarted?: () => void }> = ({
                   <motion.button
                     onClick={() => {
                       setFeatureModalOpen(false);
-                      openAuthModal("register");
+                      router.push("/auth?mode=register");
                     }}
                     whileHover={{ scale: 1.02, y: -1 }}
                     whileTap={{ scale: 0.98 }}

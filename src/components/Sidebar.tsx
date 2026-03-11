@@ -1,28 +1,22 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Inbox,
   FolderOpen,
-  Sun,
-  Moon,
-  Monitor,
   Flame,
   LogIn,
   LogOut,
   Home,
   PanelLeftClose,
   PanelLeftOpen,
-  Download,
-  Upload,
   Settings2,
 } from "lucide-react";
 import { useApp } from "@/store/AppContext";
 import { auth, googleProvider } from "@/lib/firebase";
 import { signInWithPopup, signOut } from "firebase/auth";
-import type { ThemeMode } from "@/lib/types";
 import { useDroppable } from "@dnd-kit/core";
 
 function DroppableFolder({
@@ -55,23 +49,7 @@ function DroppableFolder({
 export default function Sidebar() {
   const { state, dispatch } = useApp();
   const [collapsed, setCollapsed] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const settingsRef = useRef<HTMLDivElement>(null);
-  const importInputRef = useRef<HTMLInputElement>(null);
 
-  React.useEffect(() => {
-    if (!settingsOpen) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (
-        settingsRef.current &&
-        !settingsRef.current.contains(e.target as Node)
-      ) {
-        setSettingsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [settingsOpen]);
   const taskCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     state.tasks.forEach((t) => {
@@ -101,18 +79,6 @@ export default function Sidebar() {
     return streak;
   }, [state.tasks]);
 
-  const themeIcons: Record<ThemeMode, React.ReactNode> = {
-    light: <Sun size={14} />,
-    dark: <Moon size={14} />,
-    system: <Monitor size={14} />,
-  };
-
-  const cycleTheme = () => {
-    const modes: ThemeMode[] = ["light", "dark", "system"];
-    const idx = modes.indexOf(state.theme);
-    dispatch({ type: "SET_THEME", payload: modes[(idx + 1) % 3] });
-  };
-
   const handleSignIn = async () => {
     if (!auth || !googleProvider) return;
     try {
@@ -123,47 +89,6 @@ export default function Sidebar() {
   const handleSignOut = async () => {
     if (!auth) return;
     await signOut(auth);
-  };
-
-  const handleExportBackup = () => {
-    const payload = {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      folders: state.folders,
-      tasks: state.tasks,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `taskflow-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const parsed = JSON.parse(text) as {
-        folders?: typeof state.folders;
-        tasks?: typeof state.tasks;
-      };
-      if (!parsed.folders || !parsed.tasks) {
-        window.alert("Invalid backup file");
-        return;
-      }
-      dispatch({ type: "SET_FOLDERS", payload: parsed.folders });
-      dispatch({ type: "SET_TASKS", payload: parsed.tasks });
-      window.alert("Backup imported");
-    } catch {
-      window.alert("Import failed");
-    } finally {
-      e.target.value = "";
-    }
   };
 
   return (
@@ -321,105 +246,35 @@ export default function Sidebar() {
             className="p-2 border-t flex flex-col items-center gap-1"
             style={{ borderColor: "var(--color-border)" }}
           >
-            <div className="relative" ref={settingsRef}>
-              <button
-                onClick={() => setSettingsOpen((o) => !o)}
-                className="p-2 rounded-lg transition-all"
-                style={{
-                  color:
-                    settingsOpen ?
-                      "var(--color-accent)"
+            <button
+              onClick={() =>
+                dispatch({ type: "SET_VIEW_MODE", payload: "settings" })
+              }
+              className="p-2 rounded-lg transition-all"
+              style={{
+                color:
+                  state.viewMode === "settings"
+                    ? "var(--color-accent)"
                     : "var(--color-text-tertiary)",
-                  background:
-                    settingsOpen ? "var(--color-accent-light)" : "transparent",
-                }}
-                title="Settings"
+                background:
+                  state.viewMode === "settings"
+                    ? "var(--color-accent-light)"
+                    : "transparent",
+              }}
+              title="Settings"
+            >
+              <Settings2 size={16} />
+            </button>
+            {state.user && (
+              <button
+                onClick={handleSignOut}
+                className="p-2 rounded-lg transition-colors"
+                style={{ color: "var(--color-text-tertiary)" }}
+                title="Sign out"
               >
-                <Settings2 size={16} />
+                <LogOut size={16} />
               </button>
-              <AnimatePresence>
-                {settingsOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, x: -6, scale: 0.96 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={{ opacity: 0, x: -6, scale: 0.96 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute bottom-0 left-full ml-2 w-52 rounded-xl overflow-hidden z-50"
-                    style={{
-                      background: "var(--color-surface)",
-                      border: "1px solid var(--color-border)",
-                      boxShadow: "var(--glass-shadow)",
-                    }}
-                  >
-                    <div
-                      className="px-4 py-2 text-xs font-semibold tracking-wide uppercase"
-                      style={{ color: "var(--color-text-tertiary)" }}
-                    >
-                      Settings
-                    </div>
-                    <div
-                      className="h-px"
-                      style={{ background: "var(--color-border)" }}
-                    />
-                    <button
-                      onClick={() => {
-                        handleExportBackup();
-                        setSettingsOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                      style={{ color: "var(--color-text-secondary)" }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "var(--color-accent-light)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      <Download size={13} />
-                      <span>Export backup</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        importInputRef.current?.click();
-                        setSettingsOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                      style={{ color: "var(--color-text-secondary)" }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "var(--color-accent-light)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      <Upload size={13} />
-                      <span>Import backup</span>
-                    </button>
-                    <div
-                      className="h-px mx-3"
-                      style={{ background: "var(--color-border)" }}
-                    />
-                    <button
-                      onClick={cycleTheme}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                      style={{ color: "var(--color-text-secondary)" }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "var(--color-accent-light)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      {themeIcons[state.theme]}
-                      <span className="capitalize">{state.theme} mode</span>
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            )}
             <button
               onClick={() => setCollapsed(false)}
               className="p-2 rounded-lg transition-all"
@@ -527,14 +382,6 @@ export default function Sidebar() {
             className="p-3 border-t space-y-1"
             style={{ borderColor: "var(--color-border)" }}
           >
-            <input
-              ref={importInputRef}
-              type="file"
-              accept="application/json"
-              onChange={handleImportBackup}
-              className="hidden"
-            />
-
             {/* Streak */}
             {streak > 0 && (
               <div
@@ -551,108 +398,26 @@ export default function Sidebar() {
 
             {/* Settings & Auth */}
             <div className="flex items-center gap-1">
-              <div className="relative" ref={settingsRef}>
-                <button
-                  onClick={() => setSettingsOpen((o) => !o)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs transition-colors"
-                  style={{
-                    color:
-                      settingsOpen ?
-                        "var(--color-accent)"
+              <button
+                onClick={() =>
+                  dispatch({ type: "SET_VIEW_MODE", payload: "settings" })
+                }
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs transition-colors"
+                style={{
+                  color:
+                    state.viewMode === "settings"
+                      ? "var(--color-accent)"
                       : "var(--color-text-secondary)",
-                    background:
-                      settingsOpen ?
-                        "var(--color-accent-light)"
+                  background:
+                    state.viewMode === "settings"
+                      ? "var(--color-accent-light)"
                       : "transparent",
-                  }}
-                  title="Settings"
-                >
-                  <Settings2 size={13} />
-                  <span>Settings</span>
-                </button>
-                <AnimatePresence>
-                  {settingsOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 6, scale: 0.96 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 6, scale: 0.96 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute bottom-full left-0 mb-2 w-52 rounded-xl overflow-hidden z-50"
-                      style={{
-                        background: "var(--color-surface)",
-                        border: "1px solid var(--color-border)",
-                        boxShadow: "var(--glass-shadow)",
-                      }}
-                    >
-                      <div
-                        className="px-4 py-2 text-xs font-semibold tracking-wide uppercase"
-                        style={{ color: "var(--color-text-tertiary)" }}
-                      >
-                        Settings
-                      </div>
-                      <div
-                        className="h-px"
-                        style={{ background: "var(--color-border)" }}
-                      />
-                      <button
-                        onClick={() => {
-                          handleExportBackup();
-                          setSettingsOpen(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                        style={{ color: "var(--color-text-secondary)" }}
-                        onMouseEnter={(e) =>
-                          (e.currentTarget.style.background =
-                            "var(--color-accent-light)")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.background = "transparent")
-                        }
-                      >
-                        <Download size={13} />
-                        <span>Export backup</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          importInputRef.current?.click();
-                          setSettingsOpen(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                        style={{ color: "var(--color-text-secondary)" }}
-                        onMouseEnter={(e) =>
-                          (e.currentTarget.style.background =
-                            "var(--color-accent-light)")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.background = "transparent")
-                        }
-                      >
-                        <Upload size={13} />
-                        <span>Import backup</span>
-                      </button>
-                      <div
-                        className="h-px mx-3"
-                        style={{ background: "var(--color-border)" }}
-                      />
-                      <button
-                        onClick={cycleTheme}
-                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                        style={{ color: "var(--color-text-secondary)" }}
-                        onMouseEnter={(e) =>
-                          (e.currentTarget.style.background =
-                            "var(--color-accent-light)")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.background = "transparent")
-                        }
-                      >
-                        {themeIcons[state.theme]}
-                        <span className="capitalize">{state.theme} mode</span>
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                }}
+                title="Settings"
+              >
+                <Settings2 size={13} />
+                <span>Settings</span>
+              </button>
               <div className="flex-1" />
               {state.user ?
                 <button

@@ -23,6 +23,9 @@ if (typeof window !== "undefined" && isConfigured) {
   db = getFirestore(app);
   auth = getAuth(app);
   googleProvider = new GoogleAuthProvider();
+  googleProvider.addScope("profile");
+  googleProvider.addScope("email");
+  googleProvider.setCustomParameters({ prompt: "select_account" });
 }
 
 export { db, auth, googleProvider };

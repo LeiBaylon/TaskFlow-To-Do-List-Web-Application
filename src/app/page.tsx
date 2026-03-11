@@ -27,6 +27,7 @@ import ProductivityPanel from "@/components/ProductivityPanel";
 import TaskModal from "@/components/TaskModal";
 import LandingPage from "@/components/LandingPage";
 import SplashScreen from "@/components/SplashScreen";
+import SettingsView from "@/components/SettingsView";
 import {
   DndContext,
   DragEndEvent,
@@ -430,6 +431,7 @@ export default function Home() {
             <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-4 md:p-6">
               {state.viewMode === "dashboard" && <DashboardView />}
               {state.viewMode === "folders" && <FolderGrid />}
+              {state.viewMode === "settings" && <SettingsView />}
               {(state.viewMode === "list" ||
                 state.viewMode === "kanban" ||
                 state.viewMode === "calendar") && (
