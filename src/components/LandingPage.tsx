@@ -27,9 +27,20 @@ const LandingPage: React.FC<{ onGetStarted?: () => void }> = ({
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [particles, setParticles] = useState<Array<{ delay: number; x: number; y: number }>>([]);
   const { scrollY } = useScroll();
   const heroOpacity = useTransform(scrollY, [0, 300], [1, 0.3]);
   const heroScale = useTransform(scrollY, [0, 300], [1, 0.95]);
+
+  // Generate particles only on client side to avoid hydration mismatch
+  useEffect(() => {
+    const particleArray = [...Array(15)].map((_, i) => ({
+      delay: i * 0.2,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+    }));
+    setParticles(particleArray);
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -220,12 +231,12 @@ const LandingPage: React.FC<{ onGetStarted?: () => void }> = ({
         <FloatingBlob delay={2} size="w-80 h-80" duration={12} />
 
         {/* Particles */}
-        {[...Array(15)].map((_, i) => (
+        {particles.map((particle, i) => (
           <Particle
             key={i}
-            delay={i * 0.2}
-            x={Math.random() * 100}
-            y={Math.random() * 100}
+            delay={particle.delay}
+            x={particle.x}
+            y={particle.y}
           />
         ))}
       </div>
