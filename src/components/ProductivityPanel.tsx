@@ -127,7 +127,7 @@ export default function ProductivityPanel() {
         <div className="flex items-center gap-2 mt-2 justify-end">
           <span className="text-[9px]" style={{ color: 'var(--color-text-tertiary)' }}>Less</span>
           {[0, 1, 2, 4].map(n => (
-            <div key={n} className="w-2.5 h-2.5 rounded-[2px]" style={{ background: getHeatColor(n) }} />
+            <div key={n} className="w-2.5 h-2.5 rounded-xs" style={{ background: getHeatColor(n) }} />
           ))}
           <span className="text-[9px]" style={{ color: 'var(--color-text-tertiary)' }}>More</span>
         </div>

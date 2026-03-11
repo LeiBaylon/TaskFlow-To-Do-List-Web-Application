@@ -14,7 +14,6 @@
     "@dnd-kit/utilities": "^3.2.2",
     "canvas-confetti": "^1.9.4",
     "chrono-node": "^2.9.0",
-    "date-fns": "^4.1.0",
     "firebase": "^12.10.0",
     "framer-motion": "^12.35.2",
     "lucide-react": "^0.577.0",

@@ -154,7 +154,7 @@ export default function QuotesCarousel() {
 
       <div className="flex items-start justify-center gap-3 mb-3">
         <Quote size={20} style={{ color: 'var(--color-accent)', opacity: 0.5 }} className="shrink-0 mt-0.5" />
-        <div className="min-h-[60px] max-w-lg">
+        <div className="min-h-15 max-w-lg">
           <AnimatePresence mode="wait">
             {editingId === current.id ? (
               <motion.div
