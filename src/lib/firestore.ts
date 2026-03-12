@@ -51,7 +51,6 @@ export interface UserProfileData {
 
 // ─── Path helpers ─────────────────────────
 
-const userDoc = (db: Firestore, uid: string) => doc(db, "users", uid);
 const profileDoc = (db: Firestore, uid: string) =>
   doc(db, "users", uid, "meta", "profile");
 const prefsDoc = (db: Firestore, uid: string) =>
@@ -74,7 +73,11 @@ export async function setUserProfile(
   uid: string,
   data: UserProfileData,
 ) {
-  await setDoc(profileDoc(db, uid), { ...data, updatedAt: serverTimestamp() }, { merge: true });
+  await setDoc(
+    profileDoc(db, uid),
+    { ...data, updatedAt: serverTimestamp() },
+    { merge: true },
+  );
 }
 
 export async function getUserProfile(
@@ -108,9 +111,16 @@ export function subscribePreferences(
   uid: string,
   callback: (prefs: UserPreferences | null) => void,
 ) {
-  return onSnapshot(prefsDoc(db, uid), (snap) => {
-    callback(snap.exists() ? (snap.data() as UserPreferences) : null);
-  });
+  return onSnapshot(
+    prefsDoc(db, uid),
+    (snap) => {
+      callback(snap.exists() ? (snap.data() as UserPreferences) : null);
+    },
+    (err) => {
+      console.warn("subscribePreferences:", err.message);
+      callback(null);
+    },
+  );
 }
 
 // ─── Stats ────────────────────────────────
@@ -129,12 +139,18 @@ export async function incrementCompletionCount(
   dateKey: string,
 ) {
   const snap = await getDoc(statsDoc(db, uid));
-  const existing = snap.exists() ? (snap.data() as UserStats) : { completionHistory: {}, lastActiveDate: "" };
+  const existing =
+    snap.exists() ?
+      (snap.data() as UserStats)
+    : { completionHistory: {}, lastActiveDate: "" };
   const current = existing.completionHistory[dateKey] || 0;
   await setDoc(
     statsDoc(db, uid),
     {
-      completionHistory: { ...existing.completionHistory, [dateKey]: current + 1 },
+      completionHistory: {
+        ...existing.completionHistory,
+        [dateKey]: current + 1,
+      },
       lastActiveDate: dateKey,
     },
     { merge: true },
@@ -151,12 +167,22 @@ export async function decrementCompletionCount(
   const existing = snap.data() as UserStats;
   const current = existing.completionHistory[dateKey] || 0;
   if (current <= 1) {
-    const { [dateKey]: _, ...rest } = existing.completionHistory;
-    await setDoc(statsDoc(db, uid), { ...existing, completionHistory: rest }, { merge: true });
+    const rest = { ...existing.completionHistory };
+    delete rest[dateKey];
+    await setDoc(
+      statsDoc(db, uid),
+      { ...existing, completionHistory: rest },
+      { merge: true },
+    );
   } else {
     await setDoc(
       statsDoc(db, uid),
-      { completionHistory: { ...existing.completionHistory, [dateKey]: current - 1 } },
+      {
+        completionHistory: {
+          ...existing.completionHistory,
+          [dateKey]: current - 1,
+        },
+      },
       { merge: true },
     );
   }
@@ -167,9 +193,16 @@ export function subscribeStats(
   uid: string,
   callback: (stats: UserStats | null) => void,
 ) {
-  return onSnapshot(statsDoc(db, uid), (snap) => {
-    callback(snap.exists() ? (snap.data() as UserStats) : null);
-  });
+  return onSnapshot(
+    statsDoc(db, uid),
+    (snap) => {
+      callback(snap.exists() ? (snap.data() as UserStats) : null);
+    },
+    (err) => {
+      console.warn("subscribeStats:", err.message);
+      callback(null);
+    },
+  );
 }
 
 // ─── Tasks ────────────────────────────────
@@ -180,9 +213,16 @@ export function subscribeTasks(
   callback: (tasks: Task[]) => void,
 ) {
   const q = query(tasksCol(db, uid), orderBy("order"));
-  return onSnapshot(q, (snap) => {
-    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Task));
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Task));
+    },
+    (err) => {
+      console.warn("subscribeTasks:", err.message);
+      callback([]);
+    },
+  );
 }
 
 export async function setTask(db: Firestore, uid: string, task: Task) {
@@ -196,14 +236,6 @@ export async function updateTaskFields(
   updates: Partial<Task>,
 ) {
   await setDoc(taskDoc(db, uid, taskId), updates, { merge: true });
-}
-
-export async function removeTask(
-  db: Firestore,
-  uid: string,
-  taskId: string,
-) {
-  await deleteDoc(taskDoc(db, uid, taskId));
 }
 
 export async function removeTasks(
@@ -236,10 +268,19 @@ export function subscribeFolders(
   callback: (folders: Folder[]) => void,
 ) {
   const q = query(foldersCol(db, uid), orderBy("order"));
-  return onSnapshot(q, (snap) => {
-    const folders = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Folder);
-    callback(folders);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const folders = snap.docs.map(
+        (d) => ({ id: d.id, ...d.data() }) as Folder,
+      );
+      callback(folders);
+    },
+    (err) => {
+      console.warn("subscribeFolders:", err.message);
+      callback([]);
+    },
+  );
 }
 
 export async function setFolder(db: Firestore, uid: string, folder: Folder) {
@@ -328,4 +369,19 @@ export async function initUserDocument(
     };
     await setDoc(folderDoc(db, uid, "inbox"), inbox);
   }
+
+  // Always register email for invite lookups
+  await setDoc(
+    doc(db, "registeredEmails", data.email.toLowerCase()),
+    { uid, email: data.email.toLowerCase() },
+    { merge: true },
+  );
+}
+
+export async function isRegisteredEmail(
+  db: Firestore,
+  email: string,
+): Promise<boolean> {
+  const snap = await getDoc(doc(db, "registeredEmails", email.toLowerCase()));
+  return snap.exists();
 }

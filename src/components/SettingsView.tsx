@@ -3,7 +3,6 @@
 import React, { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import {
-  User,
   Download,
   Upload,
   Sun,
@@ -20,11 +19,13 @@ import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import type { ThemeMode } from "@/lib/types";
 import ProfileModal from "@/components/ProfileModal";
+import LogoutConfirmModal from "@/components/LogoutConfirmModal";
 
 export default function SettingsView() {
   const { state, dispatch, importBackup } = useApp();
   const importInputRef = useRef<HTMLInputElement>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
 
@@ -90,6 +91,7 @@ export default function SettingsView() {
   const handleSignOut = async () => {
     if (!auth) return;
     await signOut(auth);
+    setShowLogoutConfirm(false);
   };
 
   const getInitials = () => {
@@ -400,7 +402,7 @@ export default function SettingsView() {
                   }}
                 >
                   <button
-                    onClick={handleSignOut}
+                    onClick={() => setShowLogoutConfirm(true)}
                     className="w-full flex items-center gap-3 px-4 py-3.5 text-sm transition-colors text-left"
                     style={{ color: "var(--color-text-secondary)" }}
                     onMouseEnter={(e) =>
@@ -447,6 +449,11 @@ export default function SettingsView() {
       </div>
 
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+      <LogoutConfirmModal
+        open={showLogoutConfirm}
+        onConfirm={handleSignOut}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </>
   );
 }

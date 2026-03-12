@@ -16,6 +16,7 @@ import {
   CircleDot,
   Repeat,
   Bell,
+  UserCircle2,
 } from "lucide-react";
 import { useApp } from "@/store/AppContext";
 import { getPriorityColor, getPriorityLabel } from "@/lib/nlp";
@@ -44,6 +45,7 @@ export default function TaskModal() {
   const [tagsInput, setTagsInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [parentId, setParentId] = useState<string | null>(null);
+  const [assigneeId, setAssigneeId] = useState<string | null>(null);
 
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -63,6 +65,7 @@ export default function TaskModal() {
       setFolderId(existingTask.folderId);
       setTags([...existingTask.tags]);
       setParentId(existingTask.parentId ?? null);
+      setAssigneeId(existingTask.assigneeId ?? null);
     } else {
       setTitle(defaults?.title || "");
       setDescription(defaults?.description || "");
@@ -75,6 +78,7 @@ export default function TaskModal() {
       setFolderId(defaults?.folderId || state.activeFolderId);
       setTags(defaults?.tags ? [...defaults.tags] : []);
       setParentId(defaults?.parentId ?? null);
+      setAssigneeId(null);
     }
 
     // Focus title input after mount
@@ -113,9 +117,14 @@ export default function TaskModal() {
       const nextCompletedAt =
         isDone ? existingTask.completedAt || new Date().toISOString() : null;
 
+      const assignee =
+        state.activeWorkspaceId ?
+          state.workspaceMembers.find((m) => m.uid === assigneeId)
+        : null;
+
       updateTask(existingTask.id, {
         title: title.trim(),
-        description: description.trim() || undefined,
+        description: description.trim(),
         priority,
         dueDate: dueDate || null,
         dueTime: dueTime || null,
@@ -126,12 +135,22 @@ export default function TaskModal() {
         status,
         folderId,
         tags,
+        ...(state.activeWorkspaceId && {
+          assigneeId: assigneeId || null,
+          assigneeName: assignee?.displayName || null,
+          assigneePhotoURL: assignee?.photoURL || null,
+        }),
       });
     } else {
       const completedAt = isDone ? new Date().toISOString() : null;
+      const assignee =
+        state.activeWorkspaceId ?
+          state.workspaceMembers.find((m) => m.uid === assigneeId)
+        : null;
+
       addTask({
         title: title.trim(),
-        description: description.trim() || undefined,
+        description: description.trim(),
         completed: isDone,
         completedAt,
         priority,
@@ -143,6 +162,11 @@ export default function TaskModal() {
         folderId,
         parentId,
         status,
+        ...(state.activeWorkspaceId && {
+          assigneeId: assigneeId || null,
+          assigneeName: assignee?.displayName || null,
+          assigneePhotoURL: assignee?.photoURL || null,
+        }),
       });
     }
 
@@ -600,6 +624,55 @@ export default function TaskModal() {
                   />
                 </div>
               </div>
+
+              {/* Assignee — workspace only */}
+              {state.activeWorkspaceId && (
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                    style={{
+                      background:
+                        assigneeId ?
+                          "rgba(99,102,241,0.1)"
+                        : "var(--color-background)",
+                    }}
+                  >
+                    <UserCircle2
+                      size={13}
+                      style={{
+                        color:
+                          assigneeId ?
+                            "var(--color-accent)"
+                          : "var(--color-text-tertiary)",
+                      }}
+                    />
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={assigneeId || ""}
+                      onChange={(e) => setAssigneeId(e.target.value || null)}
+                      className="text-xs px-3 py-2 pr-7 rounded-xl outline-none cursor-pointer appearance-none transition-all"
+                      style={{
+                        background: "var(--color-background)",
+                        color: "var(--color-text-primary)",
+                        border: "1.5px solid var(--color-border)",
+                      }}
+                    >
+                      <option value="">Unassigned</option>
+                      {state.workspaceMembers.map((m) => (
+                        <option key={m.uid} value={m.uid}>
+                          {m.displayName || m.email}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={11}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                      style={{ color: "var(--color-text-tertiary)" }}
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Tags */}
               <div className="flex items-start gap-3">

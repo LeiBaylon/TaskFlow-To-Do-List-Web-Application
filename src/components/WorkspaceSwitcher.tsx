@@ -1,0 +1,283 @@
+"use client";
+
+import React, { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronDown, Plus, Check, User, Users, Mail } from "lucide-react";
+import { useApp } from "@/store/AppContext";
+
+export default function WorkspaceSwitcher({
+  collapsed,
+  onCreateWorkspace,
+}: {
+  collapsed?: boolean;
+  onCreateWorkspace?: () => void;
+}) {
+  const {
+    state,
+    switchWorkspace,
+    acceptInvitationAction,
+    declineInvitationAction,
+  } = useApp();
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const activeWs = state.workspaces.find(
+    (w) => w.workspaceId === state.activeWorkspaceId,
+  );
+  const isPersonal = !state.activeWorkspaceId;
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    if (open) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <>
+      <div className="relative" ref={dropdownRef}>
+        {/* Trigger */}
+        <button
+          onClick={() => setOpen(!open)}
+          className={`flex items-center gap-2 rounded-xl text-left transition-colors ${collapsed ? "justify-center p-2.5" : "w-full px-2.5 py-2"}`}
+          style={{
+            background: open ? "var(--color-accent-light)" : "transparent",
+            color: "var(--color-text)",
+          }}
+          onMouseEnter={(e) => {
+            if (!open)
+              e.currentTarget.style.background = "var(--color-accent-light)";
+          }}
+          onMouseLeave={(e) => {
+            if (!open) e.currentTarget.style.background = "transparent";
+          }}
+          title={
+            collapsed ?
+              isPersonal ?
+                "Personal"
+              : activeWs?.name
+            : undefined
+          }
+        >
+          <span className="text-base leading-none">
+            {isPersonal ? "👤" : activeWs?.emoji || "📁"}
+          </span>
+          {!collapsed && (
+            <>
+              <span className="flex-1 text-xs font-medium truncate">
+                {isPersonal ? "Personal" : activeWs?.name || "Workspace"}
+              </span>
+              <ChevronDown
+                size={12}
+                className="shrink-0 transition-transform"
+                style={{
+                  color: "var(--color-text-tertiary)",
+                  transform: open ? "rotate(180deg)" : "none",
+                }}
+              />
+            </>
+          )}
+        </button>
+
+        {/* Dropdown */}
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              initial={{ opacity: 0, y: -4, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -4, scale: 0.97 }}
+              transition={{ duration: 0.12 }}
+              className={`absolute top-full mt-1 z-50 rounded-xl shadow-xl overflow-hidden ${collapsed ? "left-0 w-56" : "left-0 right-0"}`}
+              style={{
+                background: "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+                boxShadow: "var(--glass-shadow)",
+              }}
+            >
+              <div className="py-1.5">
+                {/* Section: Workspaces */}
+                <p
+                  className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider"
+                  style={{ color: "var(--color-text-tertiary)" }}
+                >
+                  Workspaces
+                </p>
+
+                {/* Personal */}
+                <button
+                  onClick={() => {
+                    switchWorkspace(null);
+                    setOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                  style={{
+                    background:
+                      isPersonal ? "var(--color-accent-light)" : "transparent",
+                    color: "var(--color-text)",
+                  }}
+                  onMouseEnter={(e) =>
+                    !isPersonal &&
+                    (e.currentTarget.style.background =
+                      "var(--color-accent-light)")
+                  }
+                  onMouseLeave={(e) =>
+                    !isPersonal &&
+                    (e.currentTarget.style.background = "transparent")
+                  }
+                >
+                  <User
+                    size={14}
+                    style={{ color: "var(--color-text-secondary)" }}
+                  />
+                  <span className="flex-1 text-xs font-medium">Personal</span>
+                  {isPersonal && (
+                    <Check size={12} style={{ color: "var(--color-accent)" }} />
+                  )}
+                </button>
+
+                {/* Workspace list */}
+                {state.workspaces.map((ws) => (
+                  <button
+                    key={ws.workspaceId}
+                    onClick={() => {
+                      switchWorkspace(ws.workspaceId);
+                      setOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                    style={{
+                      background:
+                        state.activeWorkspaceId === ws.workspaceId ?
+                          "var(--color-accent-light)"
+                        : "transparent",
+                      color: "var(--color-text)",
+                    }}
+                    onMouseEnter={(e) =>
+                      state.activeWorkspaceId !== ws.workspaceId &&
+                      (e.currentTarget.style.background =
+                        "var(--color-accent-light)")
+                    }
+                    onMouseLeave={(e) =>
+                      state.activeWorkspaceId !== ws.workspaceId &&
+                      (e.currentTarget.style.background = "transparent")
+                    }
+                  >
+                    <span className="text-sm leading-none">{ws.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{ws.name}</p>
+                      <div
+                        className="flex items-center gap-1 mt-0.5"
+                        style={{ color: "var(--color-text-tertiary)" }}
+                      >
+                        <Users size={9} />
+                        <span className="text-[10px]">{ws.memberCount}</span>
+                      </div>
+                    </div>
+                    {state.activeWorkspaceId === ws.workspaceId && (
+                      <Check
+                        size={12}
+                        style={{ color: "var(--color-accent)" }}
+                      />
+                    )}
+                  </button>
+                ))}
+
+                {/* Create workspace */}
+                <div
+                  className="border-t my-1"
+                  style={{ borderColor: "var(--color-border)" }}
+                />
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    onCreateWorkspace?.();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                  style={{ color: "var(--color-accent)" }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background =
+                      "var(--color-accent-light)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "transparent")
+                  }
+                >
+                  <Plus size={14} />
+                  <span className="text-xs font-medium">New workspace</span>
+                </button>
+
+                {/* Invitations */}
+                {state.pendingInvitations.length > 0 && (
+                  <>
+                    <div
+                      className="border-t my-1"
+                      style={{ borderColor: "var(--color-border)" }}
+                    />
+                    <p
+                      className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5"
+                      style={{ color: "var(--color-text-tertiary)" }}
+                    >
+                      <Mail size={10} />
+                      Invitations ({state.pendingInvitations.length})
+                    </p>
+                    {state.pendingInvitations.map((inv) => (
+                      <div key={inv.id} className="px-3 py-2 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{inv.workspaceEmoji}</span>
+                          <div className="flex-1 min-w-0">
+                            <p
+                              className="text-xs font-medium truncate"
+                              style={{ color: "var(--color-text)" }}
+                            >
+                              {inv.workspaceName}
+                            </p>
+                            <p
+                              className="text-[10px] truncate"
+                              style={{
+                                color: "var(--color-text-tertiary)",
+                              }}
+                            >
+                              from {inv.invitedByName} · {inv.role}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-1.5 pl-6">
+                          <button
+                            onClick={async () => {
+                              await acceptInvitationAction(inv);
+                              setOpen(false);
+                            }}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-medium text-white"
+                            style={{ background: "var(--color-accent)" }}
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => declineInvitationAction(inv.id)}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-medium"
+                            style={{
+                              color: "var(--color-text-tertiary)",
+                              background: "var(--color-bg)",
+                              border: "1px solid var(--color-border)",
+                            }}
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </>
+  );
+}

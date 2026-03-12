@@ -9,7 +9,6 @@ import {
   Camera,
   Check,
   AlertTriangle,
-  LogOut,
   Shield,
   Pencil,
 } from "lucide-react";
@@ -18,9 +17,7 @@ import { auth } from "@/lib/firebase";
 import { uploadProfilePhoto } from "@/lib/cloudinary";
 import {
   updateProfile,
-  updateEmail,
   updatePassword,
-  signOut,
   deleteUser,
   EmailAuthProvider,
   reauthenticateWithCredential,
@@ -36,7 +33,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
   const user = state.user;
 
   const [displayName, setDisplayName] = useState("");
-  const [photoURL, setPhotoURL] = useState("");
+  const [, setPhotoURL] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [saving, setSaving] = useState(false);
@@ -45,7 +42,9 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
     text: string;
   } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<1 | 2>(1);
   const [deletePassword, setDeletePassword] = useState("");
+  const [confirmName, setConfirmName] = useState("");
   const [editingName, setEditingName] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState(false);
   const [editingPassword, setEditingPassword] = useState(false);
@@ -64,7 +63,9 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
       setCurrentPassword("");
       setMessage(null);
       setShowDeleteConfirm(false);
+      setDeleteStep(1);
       setDeletePassword("");
+      setConfirmName("");
       setEditingName(false);
       setEditingPhoto(false);
       setEditingPassword(false);
@@ -106,28 +107,6 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
       setEditingName(false);
     } catch {
       flash("error", "Could not update name.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSavePhoto = async () => {
-    if (!auth?.currentUser) return;
-    const trimmed = photoURL.trim();
-    if (trimmed === (user.photoURL || "")) {
-      setEditingPhoto(false);
-      return;
-    }
-    setSaving(true);
-    try {
-      await updateProfile(auth.currentUser, {
-        photoURL: trimmed || null,
-      });
-      await auth.currentUser.reload();
-      flash("success", "Photo URL updated.");
-      setEditingPhoto(false);
-    } catch {
-      flash("error", "Could not update photo.");
     } finally {
       setSaving(false);
     }
@@ -184,15 +163,11 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
         "Could not delete account. You may need to sign in again.",
       );
       setShowDeleteConfirm(false);
+      setDeleteStep(1);
+      setConfirmName("");
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleSignOut = async () => {
-    if (!auth) return;
-    await signOut(auth);
-    onClose();
   };
 
   const getInitials = () => {
@@ -213,12 +188,6 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
       })
     : "Unknown";
 
-  const settingsButtonStyle = {
-    color: "var(--color-text-secondary)",
-  };
-
-  const settingsButtonHoverBg = "var(--color-accent-light)";
-
   return (
     <AnimatePresence>
       {open && (
@@ -226,7 +195,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[999] flex items-center justify-center p-4"
+          className="fixed inset-0 z-999 flex items-center justify-center p-4"
           style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
           onClick={(e) => {
             if (e.target === e.currentTarget) onClose();
@@ -731,26 +700,6 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                 </h3>
 
                 <div className="space-y-1.5">
-                  <button
-                    onClick={handleSignOut}
-                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs transition-colors"
-                    style={{
-                      background: "var(--color-bg)",
-                      color: "var(--color-text-secondary)",
-                      border: "1px solid var(--color-border)",
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.background =
-                        "var(--color-accent-light)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.background = "var(--color-bg)")
-                    }
-                  >
-                    <LogOut size={13} />
-                    Sign out
-                  </button>
-
                   {!showDeleteConfirm ?
                     <button
                       onClick={() => setShowDeleteConfirm(true)}
@@ -780,48 +729,112 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                         border: "1px solid rgba(239,68,68,0.15)",
                       }}
                     >
-                      <p className="text-xs" style={{ color: "#ef4444" }}>
-                        <strong>This cannot be undone.</strong> Your account and
-                        all data will be permanently deleted.
-                      </p>
-                      {!isGoogleUser && (
-                        <input
-                          type="password"
-                          value={deletePassword}
-                          onChange={(e) => setDeletePassword(e.target.value)}
-                          placeholder="Enter password to confirm"
-                          className="w-full px-3 py-2 rounded-lg text-xs"
-                          style={{
-                            background: "var(--color-bg)",
-                            color: "var(--color-text)",
-                            border: "1px solid rgba(239,68,68,0.2)",
-                            outline: "none",
-                          }}
-                          disabled={saving}
-                        />
-                      )}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleDeleteAccount}
-                          disabled={
-                            saving || (!isGoogleUser && !deletePassword)
-                          }
-                          className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
-                          style={{ background: "#ef4444" }}
-                        >
-                          {saving ? "Deleting..." : "Delete permanently"}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setShowDeleteConfirm(false);
-                            setDeletePassword("");
-                          }}
-                          className="px-3 py-1.5 rounded-lg text-xs"
-                          style={{ color: "var(--color-text-tertiary)" }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
+                      {deleteStep === 1 ?
+                        <>
+                          <p className="text-xs" style={{ color: "#ef4444" }}>
+                            <strong>This cannot be undone.</strong> Your account
+                            and all data will be permanently deleted.
+                          </p>
+                          {!isGoogleUser && (
+                            <input
+                              type="password"
+                              value={deletePassword}
+                              onChange={(e) =>
+                                setDeletePassword(e.target.value)
+                              }
+                              placeholder="Enter password to confirm"
+                              className="w-full px-3 py-2 rounded-lg text-xs"
+                              style={{
+                                background: "var(--color-bg)",
+                                color: "var(--color-text)",
+                                border: "1px solid rgba(239,68,68,0.2)",
+                                outline: "none",
+                              }}
+                              disabled={saving}
+                            />
+                          )}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setDeleteStep(2)}
+                              disabled={!isGoogleUser && !deletePassword}
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
+                              style={{ background: "#ef4444" }}
+                            >
+                              Continue
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowDeleteConfirm(false);
+                                setDeleteStep(1);
+                                setDeletePassword("");
+                                setConfirmName("");
+                              }}
+                              className="px-3 py-1.5 rounded-lg text-xs"
+                              style={{ color: "var(--color-text-tertiary)" }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </>
+                      : <>
+                          <p className="text-xs" style={{ color: "#ef4444" }}>
+                            Type{" "}
+                            <strong
+                              className="select-all"
+                              style={{ color: "var(--color-text)" }}
+                            >
+                              {user.displayName || user.email}
+                            </strong>{" "}
+                            to confirm deletion. This is case-sensitive.
+                          </p>
+                          <input
+                            type="text"
+                            value={confirmName}
+                            onChange={(e) => setConfirmName(e.target.value)}
+                            placeholder={user.displayName || user.email || ""}
+                            className="w-full px-3 py-2 rounded-lg text-xs"
+                            style={{
+                              background: "var(--color-bg)",
+                              color: "var(--color-text)",
+                              border: `1px solid ${
+                                (
+                                  confirmName &&
+                                  confirmName !==
+                                    (user.displayName || user.email)
+                                ) ?
+                                  "rgba(239,68,68,0.4)"
+                                : "rgba(239,68,68,0.2)"
+                              }`,
+                              outline: "none",
+                            }}
+                            autoFocus
+                            disabled={saving}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleDeleteAccount}
+                              disabled={
+                                saving ||
+                                confirmName !== (user.displayName || user.email)
+                              }
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
+                              style={{ background: "#ef4444" }}
+                            >
+                              {saving ? "Deleting..." : "Delete permanently"}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setDeleteStep(1);
+                                setConfirmName("");
+                              }}
+                              className="px-3 py-1.5 rounded-lg text-xs"
+                              style={{ color: "var(--color-text-tertiary)" }}
+                            >
+                              Back
+                            </button>
+                          </div>
+                        </>
+                      }
                     </motion.div>
                   }
                 </div>

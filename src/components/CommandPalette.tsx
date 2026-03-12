@@ -304,7 +304,7 @@ export default function CommandPalette() {
                 >
                   {cat}
                 </div>
-                {items.map((item, i) => {
+                {items.map((item) => {
                   const globalIdx = filteredCommands.indexOf(item);
                   return (
                     <button

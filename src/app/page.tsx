@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Search,
   Menu,
@@ -28,6 +28,9 @@ import TaskModal from "@/components/TaskModal";
 import LandingPage from "@/components/LandingPage";
 import SplashScreen from "@/components/SplashScreen";
 import SettingsView from "@/components/SettingsView";
+import MembersView from "@/components/MembersView";
+import ChatView from "@/components/ChatView";
+import WorkspaceModal from "@/components/WorkspaceModal";
 import {
   DndContext,
   DragEndEvent,
@@ -47,6 +50,7 @@ export default function Home() {
   const [listSelectMode, setListSelectMode] = useState(false);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
   const [splashDone, setSplashDone] = useState(false);
 
   // --- Keyboard shortcuts ---
@@ -306,7 +310,7 @@ export default function Home() {
         <div
           className={`fixed z-40 md:relative md:z-0 transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
         >
-          <Sidebar />
+          <Sidebar onCreateWorkspace={() => setShowCreateWorkspace(true)} />
         </div>
 
         {/* Main content */}
@@ -432,6 +436,8 @@ export default function Home() {
               {state.viewMode === "dashboard" && <DashboardView />}
               {state.viewMode === "folders" && <FolderGrid />}
               {state.viewMode === "settings" && <SettingsView />}
+              {state.viewMode === "members" && <MembersView />}
+              {state.viewMode === "chat" && <ChatView />}
               {(state.viewMode === "list" ||
                 state.viewMode === "kanban" ||
                 state.viewMode === "calendar") && (
@@ -545,6 +551,10 @@ export default function Home() {
         <CommandPalette />
         <FocusMode />
         <TaskModal />
+        <WorkspaceModal
+          open={showCreateWorkspace}
+          onClose={() => setShowCreateWorkspace(false)}
+        />
 
         {/* Keyboard shortcuts help modal */}
         {showShortcuts && (

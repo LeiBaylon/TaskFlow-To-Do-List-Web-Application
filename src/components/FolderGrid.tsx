@@ -264,9 +264,15 @@ export default function FolderGrid() {
                   variants={cardVariant}
                   className="relative group"
                 >
-                  <button
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => openFolder(folder.id)}
-                    className="w-full text-left rounded-xl px-4 py-3 flex items-center gap-4 transition-all duration-200 hover:opacity-90"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ")
+                        openFolder(folder.id);
+                    }}
+                    className="w-full text-left rounded-xl px-4 py-3 flex items-center gap-4 transition-all duration-200 hover:opacity-90 cursor-pointer"
                     style={{
                       background: "var(--color-surface)",
                       border: "1px solid var(--color-border)",
@@ -347,7 +353,7 @@ export default function FolderGrid() {
                     >
                       <MoreHorizontal size={14} />
                     </button>
-                  </button>
+                  </div>
 
                   {/* Dropdown */}
                   <AnimatePresence>
@@ -450,9 +456,15 @@ export default function FolderGrid() {
                 variants={cardVariant}
                 className="relative group"
               >
-                <button
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => openFolder(folder.id)}
-                  className="w-full text-left rounded-2xl p-4 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ")
+                      openFolder(folder.id);
+                  }}
+                  className="w-full text-left rounded-2xl p-4 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg cursor-pointer"
                   style={{
                     background: "var(--color-surface)",
                     border: "1px solid var(--color-border)",
@@ -534,7 +546,7 @@ export default function FolderGrid() {
                       transition={{ duration: 0.6, ease: "easeOut" }}
                     />
                   </div>
-                </button>
+                </div>
 
                 {/* Dropdown menu */}
                 <AnimatePresence>

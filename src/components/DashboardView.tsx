@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -14,23 +14,43 @@ import {
   PartyPopper,
   ChevronLeft,
   ChevronRight,
+  Plus,
+  Users,
+  Mail,
 } from "lucide-react";
 import { useApp } from "@/store/AppContext";
 import { formatRelativeDate, getPriorityColor } from "@/lib/nlp";
 import QuotesCarousel from "./QuotesCarousel";
 import PomodoroWidget from "./PomodoroWidget";
+import WorkspaceModal from "./WorkspaceModal";
+
+const PAGE_SIZE = 10;
+const PRIORITY_LABELS = ["Urgent", "High", "Medium", "Low"] as const;
+
+function toDateKey(date: Date): string {
+  return date.toISOString().split("T")[0];
+}
 
 export default function DashboardView() {
-  const { state, dispatch, openTaskModal } = useApp();
+  const {
+    state,
+    dispatch,
+    openTaskModal,
+    switchWorkspace,
+    acceptInvitationAction,
+    declineInvitationAction,
+  } = useApp();
   const [rcPage, setRcPage] = useState(0);
   const [foldersPage, setFoldersPage] = useState(0);
-  const PAGE_SIZE = 10;
-  const isDoneTask = (t: (typeof state.tasks)[number]) =>
-    t.completed || t.status === "done";
+  const [createWsOpen, setCreateWsOpen] = useState(false);
+  const isDoneTask = useCallback(
+    (t: (typeof state.tasks)[number]) => t.completed || t.status === "done",
+    [],
+  );
 
   const stats = useMemo(() => {
     const now = new Date();
-    const todayKey = now.toISOString().split("T")[0];
+    const todayKey = toDateKey(now);
     const total = state.tasks.length;
     const completed = state.tasks.filter((t) => isDoneTask(t)).length;
     const completedToday = state.tasks.filter((t) =>
@@ -50,7 +70,7 @@ export default function DashboardView() {
     for (let i = 0; i < 365; i++) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      const key = d.toISOString().split("T")[0];
+      const key = toDateKey(d);
       const count = state.tasks.filter((t) =>
         t.completedAt?.startsWith(key),
       ).length;
@@ -67,10 +87,9 @@ export default function DashboardView() {
       highPriority,
       streak,
     };
-  }, [state.tasks]);
+  }, [state.tasks, isDoneTask]);
 
   const upcomingTasks = useMemo(() => {
-    const now = new Date();
     return state.tasks
       .filter((t) => !isDoneTask(t) && t.dueDate)
       .sort(
@@ -78,7 +97,7 @@ export default function DashboardView() {
           new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime(),
       )
       .slice(0, 5);
-  }, [state.tasks]);
+  }, [state.tasks, isDoneTask]);
 
   const recentCompleted = useMemo(() => {
     return state.tasks
@@ -88,7 +107,7 @@ export default function DashboardView() {
           new Date(b.completedAt || b.updatedAt).getTime() -
           new Date(a.completedAt || a.updatedAt).getTime(),
       );
-  }, [state.tasks]);
+  }, [state.tasks, isDoneTask]);
 
   const folderStats = useMemo(() => {
     return state.folders.map((f) => ({
@@ -97,7 +116,7 @@ export default function DashboardView() {
       pending: state.tasks.filter((t) => t.folderId === f.id && !isDoneTask(t))
         .length,
     }));
-  }, [state.tasks, state.folders]);
+  }, [state.tasks, state.folders, isDoneTask]);
 
   const completionRate =
     stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
@@ -556,7 +575,6 @@ export default function DashboardView() {
             const count = state.tasks.filter(
               (t) => !t.completed && t.priority === p,
             ).length;
-            const labels = ["Urgent", "High", "Medium", "Low"];
             return (
               <div key={p} className="text-center">
                 <div
@@ -569,13 +587,175 @@ export default function DashboardView() {
                   className="text-[11px]"
                   style={{ color: "var(--color-text-tertiary)" }}
                 >
-                  {labels[p - 1]}
+                  {PRIORITY_LABELS[p - 1]}
                 </div>
               </div>
             );
           })}
         </div>
       </motion.div>
+
+      {/* Workspaces */}
+      {state.user && (
+        <motion.div
+          variants={item}
+          className="rounded-2xl p-4"
+          style={{
+            background: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+          }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h2
+              className="text-sm font-semibold"
+              style={{ color: "var(--color-text-primary)" }}
+            >
+              <Users size={14} className="inline mr-1.5 -mt-0.5" />
+              Workspaces
+            </h2>
+            <button
+              onClick={() => setCreateWsOpen(true)}
+              className="text-xs flex items-center gap-1 hover:opacity-70 transition-opacity"
+              style={{ color: "var(--color-accent)" }}
+            >
+              <Plus size={12} /> New
+            </button>
+          </div>
+
+          {(
+            state.workspaces.length === 0 &&
+            state.pendingInvitations.length === 0
+          ) ?
+            <div className="py-6 text-center">
+              <div
+                className="w-12 h-12 rounded-2xl mx-auto mb-3 flex items-center justify-center"
+                style={{ background: "var(--color-accent-light)" }}
+              >
+                <Users size={20} style={{ color: "var(--color-accent)" }} />
+              </div>
+              <p
+                className="text-sm font-medium mb-1"
+                style={{ color: "var(--color-text-primary)" }}
+              >
+                Collaborate with others
+              </p>
+              <p
+                className="text-xs mb-3"
+                style={{ color: "var(--color-text-tertiary)" }}
+              >
+                Create a workspace to share tasks and work together
+              </p>
+              <button
+                onClick={() => setCreateWsOpen(true)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90"
+                style={{
+                  background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                }}
+              >
+                <Plus size={12} className="inline mr-1 -mt-0.5" />
+                Create workspace
+              </button>
+            </div>
+          : <div className="space-y-2">
+              {/* Workspace list */}
+              {state.workspaces.map((ws) => (
+                <button
+                  key={ws.workspaceId}
+                  onClick={() => switchWorkspace(ws.workspaceId)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors hover:opacity-80"
+                  style={{ background: "var(--color-background)" }}
+                >
+                  <span className="text-lg leading-none">{ws.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className="text-sm font-medium truncate"
+                      style={{ color: "var(--color-text-primary)" }}
+                    >
+                      {ws.name}
+                    </p>
+                    <div
+                      className="flex items-center gap-1 mt-0.5"
+                      style={{ color: "var(--color-text-tertiary)" }}
+                    >
+                      <Users size={10} />
+                      <span className="text-[11px]">
+                        {ws.memberCount} member{ws.memberCount !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  </div>
+                  <ArrowRight
+                    size={14}
+                    style={{ color: "var(--color-text-tertiary)" }}
+                  />
+                </button>
+              ))}
+
+              {/* Pending invitations */}
+              {state.pendingInvitations.length > 0 && (
+                <>
+                  <p
+                    className="text-[10px] font-semibold uppercase tracking-wider pt-2 flex items-center gap-1.5"
+                    style={{ color: "var(--color-text-tertiary)" }}
+                  >
+                    <Mail size={10} />
+                    Invitations ({state.pendingInvitations.length})
+                  </p>
+                  {state.pendingInvitations.map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                      style={{ background: "var(--color-background)" }}
+                    >
+                      <span className="text-lg leading-none">
+                        {inv.workspaceEmoji}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className="text-sm font-medium truncate"
+                          style={{ color: "var(--color-text-primary)" }}
+                        >
+                          {inv.workspaceName}
+                        </p>
+                        <p
+                          className="text-[11px] truncate"
+                          style={{ color: "var(--color-text-tertiary)" }}
+                        >
+                          from {inv.invitedByName} &middot; {inv.role}
+                        </p>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => acceptInvitationAction(inv)}
+                          className="px-2.5 py-1 rounded-lg text-[10px] font-medium text-white"
+                          style={{ background: "var(--color-accent)" }}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => declineInvitationAction(inv.id)}
+                          className="px-2.5 py-1 rounded-lg text-[10px] font-medium"
+                          style={{
+                            color: "var(--color-text-tertiary)",
+                            background: "var(--color-surface)",
+                            border: "1px solid var(--color-border)",
+                          }}
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          }
+        </motion.div>
+      )}
+
+      <WorkspaceModal
+        open={createWsOpen}
+        onClose={() => setCreateWsOpen(false)}
+      />
     </motion.div>
   );
 }

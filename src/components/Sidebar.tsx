@@ -8,16 +8,18 @@ import {
   FolderOpen,
   Flame,
   LogIn,
-  LogOut,
   Home,
   PanelLeftClose,
   PanelLeftOpen,
   Settings2,
+  Users,
+  MessageCircle,
 } from "lucide-react";
 import { useApp } from "@/store/AppContext";
 import { auth, googleProvider } from "@/lib/firebase";
-import { signInWithPopup, signOut } from "firebase/auth";
+import { signInWithPopup } from "firebase/auth";
 import { useDroppable } from "@dnd-kit/core";
+import WorkspaceSwitcher from "./WorkspaceSwitcher";
 
 function DroppableFolder({
   id,
@@ -46,7 +48,11 @@ function DroppableFolder({
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({
+  onCreateWorkspace,
+}: {
+  onCreateWorkspace: () => void;
+}) {
   const { state, dispatch } = useApp();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -84,11 +90,6 @@ export default function Sidebar() {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch {}
-  };
-
-  const handleSignOut = async () => {
-    if (!auth) return;
-    await signOut(auth);
   };
 
   return (
@@ -139,6 +140,16 @@ export default function Sidebar() {
           </div>
         }
       </div>
+
+      {/* Workspace switcher */}
+      {state.user && (
+        <div className={collapsed ? "px-2 pb-1" : "px-3 pb-1"}>
+          <WorkspaceSwitcher
+            collapsed={collapsed}
+            onCreateWorkspace={onCreateWorkspace}
+          />
+        </div>
+      )}
 
       {/* Collapsed mode: icon-only nav */}
       {collapsed ?
@@ -239,6 +250,52 @@ export default function Sidebar() {
                   </button>
                 ))}
             </div>
+
+            {/* Collapsed chat button */}
+            {state.activeWorkspaceId && (
+              <button
+                onClick={() =>
+                  dispatch({ type: "SET_VIEW_MODE", payload: "chat" })
+                }
+                className="p-2.5 rounded-lg transition-all"
+                style={{
+                  color:
+                    state.viewMode === "chat" ?
+                      "var(--color-accent)"
+                    : "var(--color-text-secondary)",
+                  background:
+                    state.viewMode === "chat" ?
+                      "var(--color-accent-light)"
+                    : "transparent",
+                }}
+                title="Chat"
+              >
+                <MessageCircle size={18} />
+              </button>
+            )}
+
+            {/* Collapsed members button */}
+            {state.activeWorkspaceId && (
+              <button
+                onClick={() =>
+                  dispatch({ type: "SET_VIEW_MODE", payload: "members" })
+                }
+                className="p-2.5 rounded-lg transition-all"
+                style={{
+                  color:
+                    state.viewMode === "members" ?
+                      "var(--color-accent)"
+                    : "var(--color-text-secondary)",
+                  background:
+                    state.viewMode === "members" ?
+                      "var(--color-accent-light)"
+                    : "transparent",
+                }}
+                title="Members"
+              >
+                <Users size={18} />
+              </button>
+            )}
           </nav>
 
           {/* Collapsed bottom: settings */}
@@ -265,16 +322,6 @@ export default function Sidebar() {
             >
               <Settings2 size={16} />
             </button>
-            {state.user && (
-              <button
-                onClick={handleSignOut}
-                className="p-2 rounded-lg transition-colors"
-                style={{ color: "var(--color-text-tertiary)" }}
-                title="Sign out"
-              >
-                <LogOut size={16} />
-              </button>
-            )}
             <button
               onClick={() => setCollapsed(false)}
               className="p-2 rounded-lg transition-all"
@@ -375,6 +422,55 @@ export default function Sidebar() {
                 </span>
               )}
             </button>
+
+            {/* Chat button — only when in a workspace */}
+            {state.activeWorkspaceId && (
+              <button
+                onClick={() =>
+                  dispatch({ type: "SET_VIEW_MODE", payload: "chat" })
+                }
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150"
+                style={{
+                  background:
+                    state.viewMode === "chat" ?
+                      "var(--color-accent-light)"
+                    : "transparent",
+                  color:
+                    state.viewMode === "chat" ?
+                      "var(--color-accent)"
+                    : "var(--color-text-secondary)",
+                }}
+              >
+                <MessageCircle size={16} />
+                <span className="flex-1 text-left">Chat</span>
+              </button>
+            )}
+
+            {/* Members button — only when in a workspace */}
+            {state.activeWorkspaceId && (
+              <button
+                onClick={() =>
+                  dispatch({ type: "SET_VIEW_MODE", payload: "members" })
+                }
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150"
+                style={{
+                  background:
+                    state.viewMode === "members" ?
+                      "var(--color-accent-light)"
+                    : "transparent",
+                  color:
+                    state.viewMode === "members" ?
+                      "var(--color-accent)"
+                    : "var(--color-text-secondary)",
+                }}
+              >
+                <Users size={16} />
+                <span className="flex-1 text-left">Members</span>
+                <span className="text-xs font-medium opacity-70">
+                  {state.workspaceMembers.length}
+                </span>
+              </button>
+            )}
           </nav>
 
           {/* Bottom bar */}
@@ -402,7 +498,7 @@ export default function Sidebar() {
                 onClick={() =>
                   dispatch({ type: "SET_VIEW_MODE", payload: "settings" })
                 }
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs transition-colors"
+                className="p-2 rounded-lg transition-colors"
                 style={{
                   color:
                     state.viewMode === "settings" ?
@@ -416,19 +512,10 @@ export default function Sidebar() {
                 title="Settings"
               >
                 <Settings2 size={13} />
-                <span>Settings</span>
               </button>
               <div className="flex-1" />
-              {state.user ?
+              {!state.user && (
                 <button
-                  onClick={handleSignOut}
-                  className="p-2 rounded-lg transition-colors"
-                  style={{ color: "var(--color-text-tertiary)" }}
-                  title="Sign out"
-                >
-                  <LogOut size={14} />
-                </button>
-              : <button
                   onClick={handleSignIn}
                   className="p-2 rounded-lg transition-colors"
                   style={{ color: "var(--color-text-tertiary)" }}
@@ -436,7 +523,7 @@ export default function Sidebar() {
                 >
                   <LogIn size={14} />
                 </button>
-              }
+              )}
             </div>
           </div>
         </>

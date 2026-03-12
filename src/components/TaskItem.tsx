@@ -481,6 +481,30 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
                   {completedSubtasks}/{subtasks.length} subtasks
                 </span>
               )}
+              {task.assigneeName && (
+                <span
+                  className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0 rounded-full"
+                  style={{
+                    background: "var(--color-accent-light)",
+                    color: "var(--color-accent)",
+                  }}
+                >
+                  <span
+                    className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-bold shrink-0"
+                    style={{
+                      background: "var(--color-accent)",
+                      color: "white",
+                    }}
+                  >
+                    {task.assigneeName
+                      .split(/[\s@]+/)
+                      .slice(0, 2)
+                      .map((w) => w[0]?.toUpperCase() || "")
+                      .join("")}
+                  </span>
+                  {task.assigneeName.split(/[\s@]/)[0]}
+                </span>
+              )}
             </div>
 
             {/* Subtask progress bar */}

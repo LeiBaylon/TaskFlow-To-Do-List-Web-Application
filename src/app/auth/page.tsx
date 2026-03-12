@@ -437,7 +437,7 @@ function AuthPageContent() {
           setError(mapAuthError(err, "google"));
         }
       });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleGoogleSignIn = async () => {
     if (!auth || !googleProvider) {

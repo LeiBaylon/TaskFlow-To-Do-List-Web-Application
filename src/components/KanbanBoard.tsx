@@ -61,15 +61,8 @@ function SortableTask({
   selectMode: boolean;
   onSelect: (id: string, e: React.MouseEvent) => void;
 }) {
-  const {
-    state,
-    toggleTask,
-    updateTask,
-    deleteTask,
-    dispatch,
-    addTask,
-    openTaskModal,
-  } = useApp();
+  const { state, toggleTask, updateTask, deleteTask, dispatch, openTaskModal } =
+    useApp();
   const {
     attributes,
     listeners,
@@ -343,14 +336,7 @@ export default function KanbanBoard({
   selectMode: boolean;
   onToggleSelectMode: () => void;
 }) {
-  const {
-    state,
-    updateTask,
-    deleteTask,
-    reorderTasks,
-    addTask,
-    openTaskModal,
-  } = useApp();
+  const { state, updateTask, deleteTask, openTaskModal } = useApp();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -372,7 +358,7 @@ export default function KanbanBoard({
     };
   }, [state.tasks, state.activeFolderId]);
 
-  const handleSelect = useCallback((id: string, _e: React.MouseEvent) => {
+  const handleSelect = useCallback((id: string) => {
     // In select mode, every click toggles the task selection
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -389,11 +375,12 @@ export default function KanbanBoard({
 
   const moveSelectedTo = useCallback(
     (colId: string) => {
+      const completedAt = colId === "done" ? new Date().toISOString() : null;
       selectedIds.forEach((id) => {
         updateTask(id, {
           status: colId as Task["status"],
           completed: colId === "done",
-          completedAt: colId === "done" ? new Date().toISOString() : null,
+          completedAt,
         });
       });
       clearSelection();
@@ -442,11 +429,13 @@ export default function KanbanBoard({
       selectMode && selectedIds.size > 0 ?
         selectedIds
       : new Set([active.id as string]);
+    const completedAt =
+      targetColId === "done" ? new Date().toISOString() : null;
     idsToMove.forEach((id) => {
       updateTask(id, {
         status: targetColId as Task["status"],
         completed: targetColId === "done",
-        completedAt: targetColId === "done" ? new Date().toISOString() : null,
+        completedAt,
       });
     });
   };
