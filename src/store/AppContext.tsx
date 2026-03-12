@@ -17,17 +17,31 @@ import type {
   Priority,
 } from "@/lib/types";
 import { db, auth } from "@/lib/firebase";
-import {
-  collection,
-  doc,
-  setDoc,
-  deleteDoc,
-  onSnapshot,
-  query,
-  orderBy,
-  writeBatch,
-} from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
+import {
+  initUserDocument,
+  subscribeTasks,
+  subscribeFolders,
+  subscribePreferences,
+  subscribeStats,
+  setTask,
+  updateTaskFields,
+  removeTask,
+  removeTasks,
+  reorderTasksDocs,
+  setFolder,
+  updateFolderFields,
+  removeFolder,
+  setUserPreferences,
+  incrementCompletionCount,
+  decrementCompletionCount,
+  setUserProfile as setProfileDoc,
+  bulkImport,
+  type UserPreferences,
+  type UserStats,
+  type SavedViewData,
+  type QuoteData,
+} from "@/lib/firestore";
 
 // ─── State ────────────────────────────────
 export interface TaskModalState {
@@ -51,6 +65,9 @@ interface AppState {
   taskModal: TaskModalState | null;
   history: HistorySnapshot[];
   future: HistorySnapshot[];
+  completionHistory: Record<string, number>;
+  savedViews: SavedViewData[];
+  customQuotes: QuoteData[];
 }
 
 interface HistorySnapshot {
@@ -82,6 +99,9 @@ const initialState: AppState = {
   taskModal: null,
   history: [],
   future: [],
+  completionHistory: {},
+  savedViews: [],
+  customQuotes: [],
 };
 
 function nextRecurringDate(dateStr: string, recurrence: Task["recurrence"]) {
@@ -117,7 +137,10 @@ type Action =
   | { type: "REORDER_TASKS"; payload: Task[] }
   | { type: "SET_TASK_MODAL"; payload: TaskModalState | null }
   | { type: "UNDO" }
-  | { type: "REDO" };
+  | { type: "REDO" }
+  | { type: "SYNC_COMPLETION_HISTORY"; payload: Record<string, number> }
+  | { type: "SYNC_SAVED_VIEWS"; payload: SavedViewData[] }
+  | { type: "SYNC_CUSTOM_QUOTES"; payload: QuoteData[] };
 
 function withHistory(state: AppState): Pick<AppState, "history" | "future"> {
   const nextHistory = [
@@ -230,6 +253,12 @@ function reducer(state: AppState, action: Action): AppState {
         future: state.future.slice(0, -1),
       };
     }
+    case "SYNC_COMPLETION_HISTORY":
+      return { ...state, completionHistory: action.payload };
+    case "SYNC_SAVED_VIEWS":
+      return { ...state, savedViews: action.payload };
+    case "SYNC_CUSTOM_QUOTES":
+      return { ...state, customQuotes: action.payload };
     default:
       return state;
   }
@@ -253,6 +282,9 @@ interface AppContextType {
   closeTaskModal: () => void;
   undo: () => void;
   redo: () => void;
+  saveSavedViews: (views: SavedViewData[]) => void;
+  saveCustomQuotes: (quotes: QuoteData[]) => void;
+  importBackup: (tasks: Task[], folders: Folder[]) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -266,8 +298,7 @@ export function useApp() {
 // ─── Provider ─────────────────────────────
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const unsubTasksRef = useRef<(() => void) | null>(null);
-  const unsubFoldersRef = useRef<(() => void) | null>(null);
+  const unsubsRef = useRef<(() => void)[]>([]);
 
   // Theme effect
   useEffect(() => {
@@ -292,12 +323,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.theme]);
 
-  // Load theme from localStorage
+  // Load theme from localStorage (for unauthenticated / initial load)
   useEffect(() => {
     const saved = localStorage.getItem("zenflow-theme") as ThemeMode | null;
     if (saved) dispatch({ type: "SET_THEME", payload: saved });
   }, []);
 
+  // Persist theme to localStorage always
   useEffect(() => {
     localStorage.setItem("zenflow-theme", state.theme);
   }, [state.theme]);
@@ -314,61 +346,88 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => unsub();
   }, []);
 
-  // Firestore sync
+  // ── Firestore sync ──────────────────────
   useEffect(() => {
+    // Clean up previous subscriptions
+    unsubsRef.current.forEach((fn) => fn());
+    unsubsRef.current = [];
+
     if (!state.user || !db) {
       // Load from localStorage for offline/unauthenticated use
       const savedTasks = localStorage.getItem("zenflow-tasks");
       const savedFolders = localStorage.getItem("zenflow-folders");
       if (savedTasks) {
-        try {
-          dispatch({ type: "SYNC_TASKS", payload: JSON.parse(savedTasks) });
-        } catch {}
+        try { dispatch({ type: "SYNC_TASKS", payload: JSON.parse(savedTasks) }); } catch {}
       }
       if (savedFolders) {
-        try {
-          dispatch({ type: "SYNC_FOLDERS", payload: JSON.parse(savedFolders) });
-        } catch {}
+        try { dispatch({ type: "SYNC_FOLDERS", payload: JSON.parse(savedFolders) }); } catch {}
       } else {
         dispatch({ type: "SYNC_FOLDERS", payload: initialState.folders });
       }
+      // Load saved views & quotes from localStorage
+      try {
+        const sv = localStorage.getItem("zenflow-saved-views");
+        if (sv) dispatch({ type: "SYNC_SAVED_VIEWS", payload: JSON.parse(sv) });
+      } catch {}
+      try {
+        const cq = localStorage.getItem("zenflow-quotes");
+        if (cq) dispatch({ type: "SYNC_CUSTOM_QUOTES", payload: JSON.parse(cq) });
+      } catch {}
       return;
     }
 
     const uid = state.user.uid;
 
-    // Subscribe to tasks
-    const tasksQ = query(
-      collection(db!, "users", uid, "tasks"),
-      orderBy("order"),
-    );
-    unsubTasksRef.current = onSnapshot(tasksQ, (snap) => {
-      const tasks = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Task);
-      dispatch({ type: "SYNC_TASKS", payload: tasks });
+    // Initialize user document on first sign-in
+    initUserDocument(db, uid, {
+      displayName: state.user.displayName || "",
+      email: state.user.email || "",
+      photoURL: state.user.photoURL || "",
     });
+
+    // Subscribe to tasks
+    unsubsRef.current.push(
+      subscribeTasks(db, uid, (tasks) => {
+        dispatch({ type: "SYNC_TASKS", payload: tasks });
+      }),
+    );
 
     // Subscribe to folders
-    const foldersQ = query(
-      collection(db!, "users", uid, "folders"),
-      orderBy("order"),
+    unsubsRef.current.push(
+      subscribeFolders(db, uid, (folders) => {
+        if (folders.length === 0) {
+          const inbox = initialState.folders[0];
+          setFolder(db!, uid, inbox);
+          dispatch({ type: "SYNC_FOLDERS", payload: [inbox] });
+        } else {
+          dispatch({ type: "SYNC_FOLDERS", payload: folders });
+        }
+      }),
     );
-    unsubFoldersRef.current = onSnapshot(foldersQ, (snap) => {
-      const folders = snap.docs.map(
-        (d) => ({ id: d.id, ...d.data() }) as Folder,
-      );
-      if (folders.length === 0) {
-        // Initialize with default
-        const inbox = initialState.folders[0];
-        setDoc(doc(db!, "users", uid, "folders", inbox.id), inbox);
-        dispatch({ type: "SYNC_FOLDERS", payload: [inbox] });
-      } else {
-        dispatch({ type: "SYNC_FOLDERS", payload: folders });
-      }
-    });
+
+    // Subscribe to preferences (theme, saved views, custom quotes)
+    unsubsRef.current.push(
+      subscribePreferences(db, uid, (prefs) => {
+        if (prefs) {
+          dispatch({ type: "SET_THEME", payload: prefs.theme || "system" });
+          dispatch({ type: "SYNC_SAVED_VIEWS", payload: prefs.savedViews || [] });
+          dispatch({ type: "SYNC_CUSTOM_QUOTES", payload: prefs.customQuotes || [] });
+        }
+      }),
+    );
+
+    // Subscribe to stats (completion history)
+    unsubsRef.current.push(
+      subscribeStats(db, uid, (stats) => {
+        if (stats) {
+          dispatch({ type: "SYNC_COMPLETION_HISTORY", payload: stats.completionHistory || {} });
+        }
+      }),
+    );
 
     return () => {
-      unsubTasksRef.current?.();
-      unsubFoldersRef.current?.();
+      unsubsRef.current.forEach((fn) => fn());
+      unsubsRef.current = [];
     };
   }, [state.user]);
 
@@ -417,33 +476,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         createdAt: now,
         updatedAt: now,
       };
-      // Optimistic update
       dispatch({ type: "ADD_TASK", payload: newTask });
-      // Persist
       if (state.user && db) {
-        setDoc(doc(db!, "users", state.user.uid, "tasks", newTask.id), newTask);
+        setTask(db, state.user.uid, newTask);
       }
       return newTask.id;
     },
     [state.user, state.tasks.length],
   );
 
-  const updateTask = useCallback(
+  const updateTaskAction = useCallback(
     (id: string, updates: Partial<Task>) => {
       const merged = { ...updates, updatedAt: new Date().toISOString() };
       dispatch({ type: "UPDATE_TASK", payload: { id, updates: merged } });
       if (state.user && db) {
-        setDoc(doc(db!, "users", state.user.uid, "tasks", id), merged, {
-          merge: true,
-        });
+        updateTaskFields(db, state.user.uid, id, merged);
       }
     },
     [state.user],
   );
 
-  const deleteTask = useCallback(
+  const deleteTaskAction = useCallback(
     (id: string) => {
-      // Also delete subtasks recursively
       const toDelete = [id];
       const findChildren = (parentId: string) => {
         state.tasks
@@ -460,11 +514,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       );
 
       if (state.user && db) {
-        const batch = writeBatch(db!);
-        toDelete.forEach((tid) => {
-          batch.delete(doc(db!, "users", state.user!.uid, "tasks", tid));
-        });
-        batch.commit();
+        removeTasks(db, state.user.uid, toDelete);
       }
     },
     [state.user, state.tasks],
@@ -475,12 +525,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const task = state.tasks.find((t) => t.id === id);
       if (!task) return;
       const completed = !task.completed;
+      const now = new Date().toISOString();
+      const dateKey = now.split("T")[0];
       const updates: Partial<Task> = {
         completed,
         status: completed ? "done" : "todo",
-        completedAt: completed ? new Date().toISOString() : null,
+        completedAt: completed ? now : null,
       };
-      updateTask(id, updates);
+      updateTaskAction(id, updates);
+
+      // Update completion stats
+      if (state.user && db) {
+        if (completed) {
+          incrementCompletionCount(db, state.user.uid, dateKey);
+        } else {
+          decrementCompletionCount(db, state.user.uid, dateKey);
+        }
+      }
 
       // Auto-create next occurrence for recurring tasks when completed.
       if (
@@ -508,7 +569,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
     },
-    [state.tasks, updateTask, addTask],
+    [state.tasks, state.user, updateTaskAction, addTask],
   );
 
   // Browser reminders for due tasks.
@@ -544,7 +605,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => window.clearInterval(interval);
   }, [state.tasks]);
 
-  const addFolder = useCallback(
+  const addFolderAction = useCallback(
     (name: string, icon?: string, color?: string) => {
       const folder: Folder = {
         id: genId(),
@@ -556,24 +617,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       };
       dispatch({ type: "ADD_FOLDER", payload: folder });
       if (state.user && db) {
-        setDoc(doc(db!, "users", state.user.uid, "folders", folder.id), folder);
+        setFolder(db, state.user.uid, folder);
       }
     },
     [state.user, state.folders.length],
   );
 
-  const updateFolder = useCallback(
+  const updateFolderAction = useCallback(
     (id: string, updates: Partial<Folder>) => {
       dispatch({ type: "UPDATE_FOLDER", payload: { id, updates } });
       if (state.user && db) {
-        const folderRef = doc(db!, "users", state.user.uid, "folders", id);
-        setDoc(folderRef, updates, { merge: true });
+        updateFolderFields(db, state.user.uid, id, updates);
       }
     },
     [state.user],
   );
 
-  const deleteFolder = useCallback(
+  const deleteFolderAction = useCallback(
     (id: string) => {
       if (id === "inbox") return;
       dispatch({ type: "DELETE_FOLDER", payload: id });
@@ -581,26 +641,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       state.tasks
         .filter((t) => t.folderId === id)
         .forEach((t) => {
-          updateTask(t.id, { folderId: "inbox" });
+          updateTaskAction(t.id, { folderId: "inbox" });
         });
       if (state.user && db) {
-        deleteDoc(doc(db!, "users", state.user.uid, "folders", id));
+        removeFolder(db, state.user.uid, id);
       }
     },
-    [state.user, state.tasks, updateTask],
+    [state.user, state.tasks, updateTaskAction],
   );
 
-  const reorderTasks = useCallback(
+  const reorderTasksAction = useCallback(
     (tasks: Task[]) => {
       dispatch({ type: "REORDER_TASKS", payload: tasks });
       if (state.user && db) {
-        const batch = writeBatch(db!);
-        tasks.forEach((t, i) => {
-          batch.update(doc(db!, "users", state.user!.uid, "tasks", t.id), {
-            order: i,
-          });
-        });
-        batch.commit();
+        reorderTasksDocs(
+          db,
+          state.user.uid,
+          tasks.map((t, i) => ({ id: t.id, order: i })),
+        );
       }
     },
     [state.user],
@@ -622,23 +680,72 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "REDO" });
   }, []);
 
+  // Persist theme to Firestore when changed by user
+  const prevThemeRef = useRef(state.theme);
+  useEffect(() => {
+    if (prevThemeRef.current !== state.theme) {
+      prevThemeRef.current = state.theme;
+      if (state.user && db) {
+        setUserPreferences(db, state.user.uid, { theme: state.theme });
+      }
+    }
+  }, [state.theme, state.user]);
+
+  const saveSavedViews = useCallback(
+    (views: SavedViewData[]) => {
+      dispatch({ type: "SYNC_SAVED_VIEWS", payload: views });
+      if (state.user && db) {
+        setUserPreferences(db, state.user.uid, { savedViews: views });
+      } else {
+        localStorage.setItem("zenflow-saved-views", JSON.stringify(views));
+      }
+    },
+    [state.user],
+  );
+
+  const saveCustomQuotes = useCallback(
+    (quotes: QuoteData[]) => {
+      dispatch({ type: "SYNC_CUSTOM_QUOTES", payload: quotes });
+      if (state.user && db) {
+        setUserPreferences(db, state.user.uid, { customQuotes: quotes });
+      } else {
+        localStorage.setItem("zenflow-quotes", JSON.stringify(quotes));
+      }
+    },
+    [state.user],
+  );
+
+  const importBackupAction = useCallback(
+    (tasks: Task[], folders: Folder[]) => {
+      dispatch({ type: "SET_TASKS", payload: tasks });
+      dispatch({ type: "SET_FOLDERS", payload: folders });
+      if (state.user && db) {
+        bulkImport(db, state.user.uid, tasks, folders);
+      }
+    },
+    [state.user],
+  );
+
   return (
     <AppContext.Provider
       value={{
         state,
         dispatch,
         addTask,
-        updateTask,
-        deleteTask,
+        updateTask: updateTaskAction,
+        deleteTask: deleteTaskAction,
         toggleTask,
-        addFolder,
-        updateFolder,
-        deleteFolder,
-        reorderTasks,
+        addFolder: addFolderAction,
+        updateFolder: updateFolderAction,
+        deleteFolder: deleteFolderAction,
+        reorderTasks: reorderTasksAction,
         openTaskModal,
         closeTaskModal,
         undo,
         redo,
+        saveSavedViews,
+        saveCustomQuotes,
+        importBackup: importBackupAction,
       }}
     >
       {children}

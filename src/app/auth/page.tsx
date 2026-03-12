@@ -206,7 +206,10 @@ const CursorParticles = () => {
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const id = nextId.current++;
-      setTrails((prev) => [...prev.slice(-12), { id, x: e.clientX, y: e.clientY }]);
+      setTrails((prev) => [
+        ...prev.slice(-12),
+        { id, x: e.clientX, y: e.clientY },
+      ]);
     };
     window.addEventListener("mousemove", handler);
     return () => window.removeEventListener("mousemove", handler);
@@ -235,7 +238,8 @@ const CursorParticles = () => {
 function AuthPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialMode = searchParams.get("mode") === "register" ? "register" : "login";
+  const initialMode =
+    searchParams.get("mode") === "register" ? "register" : "login";
 
   const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
@@ -273,8 +277,8 @@ function AuthPageContent() {
       case "auth/user-not-found":
       case "auth/wrong-password":
       case "auth/invalid-credential":
-        return errMode === "login"
-          ? "Invalid email or password."
+        return errMode === "login" ?
+            "Invalid email or password."
           : "Could not verify your credentials.";
       case "auth/too-many-requests":
         return "Too many attempts. Please wait and try again.";
@@ -294,7 +298,8 @@ function AuthPageContent() {
         return "Google sign-in is not enabled. Enable it in Firebase Console → Authentication → Sign-in method.";
       default:
         if (errMode === "register") return "Could not create your account.";
-        if (errMode === "google") return "Google sign-in failed. Please try again.";
+        if (errMode === "google")
+          return "Google sign-in failed. Please try again.";
         if (errMode === "reset") return "Could not send reset email.";
         if (errMode === "verify") return "Could not send verification email.";
         return "Could not sign you in.";
@@ -546,9 +551,7 @@ function AuthPageContent() {
               </div>
               <span className="text-2xl font-bold text-white">TaskFlow</span>
             </div>
-            <p className="text-gray-400 text-sm mt-1">
-              Flow into productivity
-            </p>
+            <p className="text-gray-400 text-sm mt-1">Flow into productivity</p>
           </motion.div>
 
           {/* Animated feature carousel */}
@@ -591,9 +594,9 @@ function AuthPageContent() {
                 >
                   <div
                     className={`absolute inset-0 rounded-full ${
-                      i === featureIndex
-                        ? "bg-linear-to-r from-purple-400 to-blue-400"
-                        : "bg-white/20"
+                      i === featureIndex ?
+                        "bg-linear-to-r from-purple-400 to-blue-400"
+                      : "bg-white/20"
                     }`}
                   />
                   {i === featureIndex && (
@@ -632,9 +635,7 @@ function AuthPageContent() {
                   </div>
                 ))}
               </div>
-              <span className="text-sm text-gray-400 ml-1">
-                +50k users
-              </span>
+              <span className="text-sm text-gray-400 ml-1">+50k users</span>
             </div>
             <div className="flex gap-0.5">
               {[...Array(5)].map((_, i) => (
@@ -705,9 +706,9 @@ function AuthPageContent() {
                   transition={{ delay: 0.5 }}
                   className="text-sm text-gray-400 mt-2"
                 >
-                  {mode === "register"
-                    ? "Check your email for verification"
-                    : "Redirecting you..."}
+                  {mode === "register" ?
+                    "Check your email for verification"
+                  : "Redirecting you..."}
                 </motion.p>
                 {/* Confetti particles */}
                 {Array.from({ length: 20 }).map((_, i) => (
@@ -754,9 +755,9 @@ function AuthPageContent() {
                 {mode === "login" ? "Welcome back" : "Create account"}
               </h1>
               <p className="text-gray-400">
-                {mode === "login"
-                  ? "Enter your credentials to access your workspace"
-                  : "Start your productivity journey today"}
+                {mode === "login" ?
+                  "Enter your credentials to access your workspace"
+                : "Start your productivity journey today"}
               </p>
             </motion.div>
           </AnimatePresence>
@@ -814,9 +815,9 @@ function AuthPageContent() {
                   <div className="relative">
                     <div
                       className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${
-                        activeField === "name"
-                          ? "text-purple-400"
-                          : "text-gray-500"
+                        activeField === "name" ? "text-purple-400" : (
+                          "text-gray-500"
+                        )
                       }`}
                     >
                       <User className="w-4 h-4" />
@@ -831,9 +832,9 @@ function AuthPageContent() {
                       onBlur={() => setActiveField(null)}
                       placeholder="Full name"
                       className={`w-full pl-11 pr-4 py-3 rounded-xl bg-white/5 border text-white placeholder:text-gray-500 focus:outline-none transition-all ${
-                        activeField === "name"
-                          ? "border-purple-400/50 bg-purple-500/5 shadow-[0_0_20px_rgba(168,85,247,0.1)]"
-                          : "border-white/10 hover:border-white/20"
+                        activeField === "name" ?
+                          "border-purple-400/50 bg-purple-500/5 shadow-[0_0_20px_rgba(168,85,247,0.1)]"
+                        : "border-white/10 hover:border-white/20"
                       }`}
                       required={mode === "register"}
                     />
@@ -841,7 +842,11 @@ function AuthPageContent() {
                       <motion.div
                         layoutId="fieldGlow"
                         className="absolute inset-0 rounded-xl border border-purple-400/30 pointer-events-none"
-                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 400,
+                          damping: 30,
+                        }}
                       />
                     )}
                   </div>
@@ -853,9 +858,7 @@ function AuthPageContent() {
             <div className="relative">
               <div
                 className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${
-                  activeField === "email"
-                    ? "text-purple-400"
-                    : "text-gray-500"
+                  activeField === "email" ? "text-purple-400" : "text-gray-500"
                 }`}
               >
                 <Mail className="w-4 h-4" />
@@ -870,9 +873,9 @@ function AuthPageContent() {
                 onBlur={() => setActiveField(null)}
                 placeholder="you@example.com"
                 className={`w-full pl-11 pr-4 py-3 rounded-xl bg-white/5 border text-white placeholder:text-gray-500 focus:outline-none transition-all ${
-                  activeField === "email"
-                    ? "border-purple-400/50 bg-purple-500/5 shadow-[0_0_20px_rgba(168,85,247,0.1)]"
-                    : "border-white/10 hover:border-white/20"
+                  activeField === "email" ?
+                    "border-purple-400/50 bg-purple-500/5 shadow-[0_0_20px_rgba(168,85,247,0.1)]"
+                  : "border-white/10 hover:border-white/20"
                 }`}
                 required
               />
@@ -890,9 +893,9 @@ function AuthPageContent() {
               <div className="relative">
                 <div
                   className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${
-                    activeField === "password"
-                      ? "text-purple-400"
-                      : "text-gray-500"
+                    activeField === "password" ? "text-purple-400" : (
+                      "text-gray-500"
+                    )
                   }`}
                 >
                   <Lock className="w-4 h-4" />
@@ -907,9 +910,9 @@ function AuthPageContent() {
                   onBlur={() => setActiveField(null)}
                   placeholder="At least 6 characters"
                   className={`w-full pl-11 pr-12 py-3 rounded-xl bg-white/5 border text-white placeholder:text-gray-500 focus:outline-none transition-all ${
-                    activeField === "password"
-                      ? "border-purple-400/50 bg-purple-500/5 shadow-[0_0_20px_rgba(168,85,247,0.1)]"
-                      : "border-white/10 hover:border-white/20"
+                    activeField === "password" ?
+                      "border-purple-400/50 bg-purple-500/5 shadow-[0_0_20px_rgba(168,85,247,0.1)]"
+                    : "border-white/10 hover:border-white/20"
                   }`}
                   minLength={6}
                   required
@@ -919,11 +922,9 @@ function AuthPageContent() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
                 >
-                  {showPassword ? (
+                  {showPassword ?
                     <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
+                  : <Eye className="w-4 h-4" />}
                 </button>
                 {activeField === "password" && (
                   <motion.div
@@ -946,9 +947,9 @@ function AuthPageContent() {
                       <motion.div
                         key={level}
                         className={`h-1 flex-1 rounded-full ${
-                          passwordStrength.score >= level
-                            ? passwordStrength.color
-                            : "bg-white/10"
+                          passwordStrength.score >= level ?
+                            passwordStrength.color
+                          : "bg-white/10"
                         }`}
                         initial={{ scaleX: 0 }}
                         animate={{ scaleX: 1 }}
@@ -1036,18 +1037,21 @@ function AuthPageContent() {
                 }}
               />
               <span className="relative z-10 flex items-center justify-center gap-2">
-                {busy ? (
+                {busy ?
                   <motion.div
                     className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                    transition={{
+                      duration: 0.8,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
                   />
-                ) : (
-                  <>
+                : <>
                     {mode === "login" ? "Sign In" : "Create Account"}
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </>
-                )}
+                }
               </span>
             </motion.button>
           </form>
@@ -1059,9 +1063,9 @@ function AuthPageContent() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
           >
-            {mode === "login"
-              ? "Don\u2019t have an account?"
-              : "Already have an account?"}{" "}
+            {mode === "login" ?
+              "Don\u2019t have an account?"
+            : "Already have an account?"}{" "}
             <button
               type="button"
               onClick={() =>
@@ -1075,8 +1079,8 @@ function AuthPageContent() {
 
           {/* Terms */}
           <p className="mt-4 text-center text-[11px] text-gray-600">
-            By continuing, you agree to TaskFlow&apos;s Terms of Service and Privacy
-            Policy.
+            By continuing, you agree to TaskFlow&apos;s Terms of Service and
+            Privacy Policy.
           </p>
         </div>
       </motion.div>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Check, Quote } from 'lucide-react';
+import { useApp } from '@/store/AppContext';
 
 const DEFAULT_QUOTES = [
   { id: '1', text: 'The secret of getting ahead is getting started.', author: 'Mark Twain' },
@@ -19,21 +20,9 @@ interface QuoteItem {
   author: string;
 }
 
-const STORAGE_KEY = 'zenflow-quotes';
-
-function loadQuotes(): QuoteItem[] {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch {}
-  return DEFAULT_QUOTES;
-}
-
-function saveQuotes(quotes: QuoteItem[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
-}
-
 export default function QuotesCarousel() {
+  const { state, saveCustomQuotes } = useApp();
+  const contextQuotes = state.customQuotes as QuoteItem[];
   const [quotes, setQuotes] = useState<QuoteItem[]>(DEFAULT_QUOTES);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -45,9 +34,12 @@ export default function QuotesCarousel() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [paused, setPaused] = useState(false);
 
+  // Sync from context
   useEffect(() => {
-    setQuotes(loadQuotes());
-  }, []);
+    if (contextQuotes && contextQuotes.length > 0) {
+      setQuotes(contextQuotes);
+    }
+  }, [contextQuotes]);
 
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -86,7 +78,7 @@ export default function QuotesCarousel() {
       q.id === editingId ? { ...q, text: editText.trim(), author: editAuthor.trim() } : q
     );
     setQuotes(updated);
-    saveQuotes(updated);
+    saveCustomQuotes(updated);
     setEditingId(null);
     setPaused(false);
   };
@@ -100,7 +92,7 @@ export default function QuotesCarousel() {
     if (quotes.length <= 1) return;
     const updated = quotes.filter(q => q.id !== id);
     setQuotes(updated);
-    saveQuotes(updated);
+    saveCustomQuotes(updated);
     setCurrentIndex(i => Math.min(i, updated.length - 1));
     setEditingId(null);
     setPaused(false);
@@ -115,7 +107,7 @@ export default function QuotesCarousel() {
     };
     const updated = [...quotes, newQ];
     setQuotes(updated);
-    saveQuotes(updated);
+    saveCustomQuotes(updated);
     setCurrentIndex(updated.length - 1);
     setNewText('');
     setNewAuthor('');

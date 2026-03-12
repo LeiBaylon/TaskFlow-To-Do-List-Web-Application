@@ -45,7 +45,7 @@ export default function TaskList({
   selectMode?: boolean;
   onToggleSelectMode?: () => void;
 }) {
-  const { state, dispatch, updateTask, deleteTask } = useApp();
+  const { state, dispatch, updateTask, deleteTask, saveSavedViews } = useApp();
   const [sortField, setSortField] = useState<SortField>("order");
   const [sortAsc, setSortAsc] = useState(true);
   const [showCompleted, setShowCompleted] = useState(false);
@@ -55,16 +55,7 @@ export default function TaskList({
     "all" | "1" | "2" | "3" | "4"
   >("all");
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
-  const [savedViews, setSavedViews] = useState<SavedView[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      return JSON.parse(
-        localStorage.getItem("zenflow-saved-views") || "[]",
-      ) as SavedView[];
-    } catch {
-      return [];
-    }
-  });
+  const savedViews = (state.savedViews || []) as SavedView[];
 
   useEffect(() => {
     if (statusFilter === "done") {
@@ -167,8 +158,7 @@ export default function TaskList({
   );
 
   const persistViews = (views: SavedView[]) => {
-    setSavedViews(views);
-    localStorage.setItem("zenflow-saved-views", JSON.stringify(views));
+    saveSavedViews(views);
   };
 
   const saveCurrentView = () => {

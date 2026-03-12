@@ -253,13 +253,13 @@ export default function Sidebar() {
               className="p-2 rounded-lg transition-all"
               style={{
                 color:
-                  state.viewMode === "settings"
-                    ? "var(--color-accent)"
-                    : "var(--color-text-tertiary)",
+                  state.viewMode === "settings" ?
+                    "var(--color-accent)"
+                  : "var(--color-text-tertiary)",
                 background:
-                  state.viewMode === "settings"
-                    ? "var(--color-accent-light)"
-                    : "transparent",
+                  state.viewMode === "settings" ?
+                    "var(--color-accent-light)"
+                  : "transparent",
               }}
               title="Settings"
             >
@@ -405,13 +405,13 @@ export default function Sidebar() {
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs transition-colors"
                 style={{
                   color:
-                    state.viewMode === "settings"
-                      ? "var(--color-accent)"
-                      : "var(--color-text-secondary)",
+                    state.viewMode === "settings" ?
+                      "var(--color-accent)"
+                    : "var(--color-text-secondary)",
                   background:
-                    state.viewMode === "settings"
-                      ? "var(--color-accent-light)"
-                      : "transparent",
+                    state.viewMode === "settings" ?
+                      "var(--color-accent-light)"
+                    : "transparent",
                 }}
                 title="Settings"
               >

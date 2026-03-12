@@ -38,7 +38,6 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-
 const LandingPage: React.FC<{ onGetStarted?: () => void }> = ({
   onGetStarted,
 }) => {

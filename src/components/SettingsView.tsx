@@ -22,7 +22,7 @@ import type { ThemeMode } from "@/lib/types";
 import ProfileModal from "@/components/ProfileModal";
 
 export default function SettingsView() {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, importBackup } = useApp();
   const importInputRef = useRef<HTMLInputElement>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
@@ -30,7 +30,11 @@ export default function SettingsView() {
 
   const user = state.user;
 
-  const themeOptions: { mode: ThemeMode; icon: React.ReactNode; label: string }[] = [
+  const themeOptions: {
+    mode: ThemeMode;
+    icon: React.ReactNode;
+    label: string;
+  }[] = [
     { mode: "light", icon: <Sun size={16} />, label: "Light" },
     { mode: "dark", icon: <Moon size={16} />, label: "Dark" },
     { mode: "system", icon: <Monitor size={16} />, label: "System" },
@@ -71,6 +75,9 @@ export default function SettingsView() {
       }
       dispatch({ type: "SET_FOLDERS", payload: parsed.folders });
       dispatch({ type: "SET_TASKS", payload: parsed.tasks });
+      if (state.user) {
+        importBackup(parsed.tasks, parsed.folders);
+      }
       setImportSuccess(true);
       setTimeout(() => setImportSuccess(false), 3000);
     } catch {
@@ -147,7 +154,7 @@ export default function SettingsView() {
                   }
                 >
                   {/* Avatar */}
-                  {user.photoURL ? (
+                  {user.photoURL ?
                     <img
                       src={user.photoURL}
                       alt={user.displayName || "User"}
@@ -155,8 +162,7 @@ export default function SettingsView() {
                       style={{ border: "2px solid var(--color-accent)" }}
                       referrerPolicy="no-referrer"
                     />
-                  ) : (
-                    <div
+                  : <div
                       className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold shrink-0"
                       style={{
                         background: "var(--color-accent-light)",
@@ -166,7 +172,7 @@ export default function SettingsView() {
                     >
                       {getInitials()}
                     </div>
-                  )}
+                  }
                   <div className="flex-1 min-w-0 text-left">
                     <p
                       className="text-sm font-semibold truncate"
@@ -229,17 +235,17 @@ export default function SettingsView() {
                       className="flex flex-col items-center gap-2 px-3 py-3 rounded-xl text-xs font-medium transition-all"
                       style={{
                         background:
-                          state.theme === mode
-                            ? "var(--color-accent-light)"
-                            : "var(--color-bg, var(--color-background))",
+                          state.theme === mode ?
+                            "var(--color-accent-light)"
+                          : "var(--color-bg, var(--color-background))",
                         color:
-                          state.theme === mode
-                            ? "var(--color-accent)"
-                            : "var(--color-text-secondary)",
+                          state.theme === mode ?
+                            "var(--color-accent)"
+                          : "var(--color-text-secondary)",
                         border:
-                          state.theme === mode
-                            ? "2px solid var(--color-accent)"
-                            : "1px solid var(--color-border)",
+                          state.theme === mode ?
+                            "2px solid var(--color-accent)"
+                          : "1px solid var(--color-border)",
                       }}
                     >
                       {icon}

@@ -41,5 +41,11 @@ export interface UserProfile {
   createdAt: string;
 }
 
-export type ViewMode = "list" | "kanban" | "calendar" | "dashboard" | "folders" | "settings";
+export type ViewMode =
+  | "list"
+  | "kanban"
+  | "calendar"
+  | "dashboard"
+  | "folders"
+  | "settings";
 export type ThemeMode = "light" | "dark" | "system";

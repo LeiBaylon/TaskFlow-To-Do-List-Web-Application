@@ -204,8 +204,9 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
       .join("");
   };
 
-  const joinedDate = user.metadata.creationTime
-    ? new Date(user.metadata.creationTime).toLocaleDateString("en-US", {
+  const joinedDate =
+    user.metadata.creationTime ?
+      new Date(user.metadata.creationTime).toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
         day: "numeric",
@@ -253,7 +254,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
               <div className="flex items-center gap-3">
                 {/* Avatar */}
                 <div className="relative group">
-                  {user.photoURL ? (
+                  {user.photoURL ?
                     <img
                       src={user.photoURL}
                       alt={user.displayName || "User"}
@@ -263,8 +264,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                       }}
                       referrerPolicy="no-referrer"
                     />
-                  ) : (
-                    <div
+                  : <div
                       className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold"
                       style={{
                         background: "var(--color-accent-light)",
@@ -274,7 +274,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                     >
                       {getInitials()}
                     </div>
-                  )}
+                  }
                   <button
                     onClick={() => setEditingPhoto((p) => !p)}
                     className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center transition-colors"
@@ -289,7 +289,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                 </div>
 
                 <div className="min-w-0">
-                  {editingName ? (
+                  {editingName ?
                     <div className="flex items-center gap-1.5">
                       <input
                         ref={nameInputRef}
@@ -335,8 +335,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                         <X size={14} />
                       </button>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5">
+                  : <div className="flex items-center gap-1.5">
                       <p
                         className="text-base font-semibold truncate"
                         style={{ color: "var(--color-text)" }}
@@ -352,7 +351,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                         <Pencil size={12} />
                       </button>
                     </div>
-                  )}
+                  }
                   <p
                     className="text-xs truncate"
                     style={{ color: "var(--color-text-tertiary)" }}
@@ -390,17 +389,17 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                     className="rounded-lg px-3 py-2 text-xs"
                     style={{
                       background:
-                        message.type === "success"
-                          ? "var(--color-success-bg, rgba(34,197,94,0.1))"
-                          : "var(--color-error-bg, rgba(239,68,68,0.1))",
+                        message.type === "success" ?
+                          "var(--color-success-bg, rgba(34,197,94,0.1))"
+                        : "var(--color-error-bg, rgba(239,68,68,0.1))",
                       color:
-                        message.type === "success"
-                          ? "var(--color-success, #22c55e)"
-                          : "var(--color-error, #ef4444)",
+                        message.type === "success" ?
+                          "var(--color-success, #22c55e)"
+                        : "var(--color-error, #ef4444)",
                       border: `1px solid ${
-                        message.type === "success"
-                          ? "var(--color-success-border, rgba(34,197,94,0.2))"
-                          : "var(--color-error-border, rgba(239,68,68,0.2))"
+                        message.type === "success" ?
+                          "var(--color-success-border, rgba(34,197,94,0.2))"
+                        : "var(--color-error-border, rgba(239,68,68,0.2))"
                       }`,
                     }}
                   >
@@ -440,7 +439,9 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                         setUploading(true);
                         try {
                           const url = await uploadProfilePhoto(file);
-                          await updateProfile(auth.currentUser, { photoURL: url });
+                          await updateProfile(auth.currentUser, {
+                            photoURL: url,
+                          });
                           await auth.currentUser.reload();
                           setPhotoURL(url);
                           flash("success", "Profile photo updated.");
@@ -473,7 +474,9 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                             if (!auth?.currentUser) return;
                             setSaving(true);
                             try {
-                              await updateProfile(auth.currentUser, { photoURL: "" });
+                              await updateProfile(auth.currentUser, {
+                                photoURL: "",
+                              });
                               await auth.currentUser.reload();
                               setPhotoURL("");
                               flash("success", "Photo removed.");
@@ -619,7 +622,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                     Security
                   </h3>
 
-                  {!editingPassword ? (
+                  {!editingPassword ?
                     <button
                       onClick={() => setEditingPassword(true)}
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs transition-colors"
@@ -639,8 +642,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                       <Shield size={13} />
                       Change password
                     </button>
-                  ) : (
-                    <motion.div
+                  : <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       className="space-y-2"
@@ -715,7 +717,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                         </button>
                       </div>
                     </motion.div>
-                  )}
+                  }
                 </div>
               )}
 
@@ -749,7 +751,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                     Sign out
                   </button>
 
-                  {!showDeleteConfirm ? (
+                  {!showDeleteConfirm ?
                     <button
                       onClick={() => setShowDeleteConfirm(true)}
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs transition-colors"
@@ -769,8 +771,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                       <AlertTriangle size={13} />
                       Delete account
                     </button>
-                  ) : (
-                    <motion.div
+                  : <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       className="rounded-xl p-3 space-y-2.5"
@@ -802,7 +803,9 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                       <div className="flex gap-2">
                         <button
                           onClick={handleDeleteAccount}
-                          disabled={saving || (!isGoogleUser && !deletePassword)}
+                          disabled={
+                            saving || (!isGoogleUser && !deletePassword)
+                          }
                           className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
                           style={{ background: "#ef4444" }}
                         >
@@ -820,7 +823,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                         </button>
                       </div>
                     </motion.div>
-                  )}
+                  }
                 </div>
               </div>
             </div>
