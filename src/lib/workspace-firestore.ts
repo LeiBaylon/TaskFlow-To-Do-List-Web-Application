@@ -12,6 +12,7 @@ import {
   writeBatch,
   getDocs,
   increment,
+  type DocumentReference,
   type Firestore,
 } from "firebase/firestore";
 import type {
@@ -46,6 +47,8 @@ const wsActivityCol = (db: Firestore, wsId: string) =>
   collection(db, "workspaces", wsId, "activity");
 const wsMessagesCol = (db: Firestore, wsId: string) =>
   collection(db, "workspaces", wsId, "messages");
+const wsDmsCol = (db: Firestore, wsId: string) =>
+  collection(db, "workspaces", wsId, "dms");
 const userWsCol = (db: Firestore, uid: string) =>
   collection(db, "users", uid, "workspaces");
 const userWsDoc = (db: Firestore, uid: string, wsId: string) =>
@@ -53,6 +56,18 @@ const userWsDoc = (db: Firestore, uid: string, wsId: string) =>
 const invitationsCol = (db: Firestore) => collection(db, "invitations");
 const invitationDoc = (db: Firestore, invId: string) =>
   doc(db, "invitations", invId);
+
+async function deleteRefsInBatches(
+  db: Firestore,
+  refs: DocumentReference[],
+  batchSize = 400,
+) {
+  for (let index = 0; index < refs.length; index += batchSize) {
+    const batch = writeBatch(db);
+    refs.slice(index, index + batchSize).forEach((ref) => batch.delete(ref));
+    await batch.commit();
+  }
+}
 
 // ─── Workspace CRUD ───────────────────────
 
@@ -105,25 +120,49 @@ export async function createWorkspace(
 }
 
 export async function deleteWorkspace(db: Firestore, wsId: string) {
+  const refsToDelete: DocumentReference[] = [];
+
   // Get all members to remove their workspace refs
   const membersSnap = await getDocs(wsMembersCol(db, wsId));
-  const batch = writeBatch(db);
   membersSnap.docs.forEach((d) => {
-    batch.delete(userWsDoc(db, d.data().uid, wsId));
-    batch.delete(d.ref);
+    refsToDelete.push(userWsDoc(db, d.data().uid, wsId));
+    refsToDelete.push(d.ref);
   });
+
   // Delete workspace tasks
   const tasksSnap = await getDocs(wsTasksCol(db, wsId));
-  tasksSnap.docs.forEach((d) => batch.delete(d.ref));
+  tasksSnap.docs.forEach((d) => refsToDelete.push(d.ref));
+
   // Delete workspace folders
   const foldersSnap = await getDocs(wsFoldersCol(db, wsId));
-  foldersSnap.docs.forEach((d) => batch.delete(d.ref));
+  foldersSnap.docs.forEach((d) => refsToDelete.push(d.ref));
+
   // Delete activity
   const activitySnap = await getDocs(wsActivityCol(db, wsId));
-  activitySnap.docs.forEach((d) => batch.delete(d.ref));
-  // Delete workspace doc
-  batch.delete(wsDoc(db, wsId));
-  await batch.commit();
+  activitySnap.docs.forEach((d) => refsToDelete.push(d.ref));
+
+  // Delete chat messages
+  const messagesSnap = await getDocs(wsMessagesCol(db, wsId));
+  messagesSnap.docs.forEach((d) => refsToDelete.push(d.ref));
+
+  // Delete DM messages and DM channel docs
+  const dmsSnap = await getDocs(wsDmsCol(db, wsId));
+  for (const channelDoc of dmsSnap.docs) {
+    const dmMessagesSnap = await getDocs(collection(channelDoc.ref, "messages"));
+    dmMessagesSnap.docs.forEach((d) => refsToDelete.push(d.ref));
+    refsToDelete.push(channelDoc.ref);
+  }
+
+  // Delete pending and historical invitations for the workspace
+  const invitationsSnap = await getDocs(
+    query(invitationsCol(db), where("workspaceId", "==", wsId)),
+  );
+  invitationsSnap.docs.forEach((d) => refsToDelete.push(d.ref));
+
+  // Delete workspace doc last
+  refsToDelete.push(wsDoc(db, wsId));
+
+  await deleteRefsInBatches(db, refsToDelete);
 }
 
 export async function updateWorkspace(

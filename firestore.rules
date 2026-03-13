@@ -27,7 +27,7 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow write: if request.auth != null
                    && (request.auth.uid == uid
-                       || exists(/databases/$(database)/documents/workspaces/$(wsId)/members/$(request.auth.uid)));
+                       || get(/databases/$(database)/documents/workspaces/$(wsId)/members/$(request.auth.uid)).data.role in ['owner', 'admin']);
     }
 
     // ─── Workspaces ───────────────────────────────────────
@@ -37,27 +37,57 @@ service cloud.firestore {
             && exists(/databases/$(database)/documents/workspaces/$(wsId)/members/$(request.auth.uid));
       }
 
+      function currentUserRole() {
+        return get(/databases/$(database)/documents/workspaces/$(wsId)/members/$(request.auth.uid)).data.role;
+      }
+
+      function isOwner() {
+        return isMember() && currentUserRole() == 'owner';
+      }
+
+      function isAdmin() {
+        return isMember() && currentUserRole() == 'admin';
+      }
+
+      function isAdminOrOwner() {
+        return isOwner() || isAdmin();
+      }
+
+      function targetRole(memberId) {
+        return get(/databases/$(database)/documents/workspaces/$(wsId)/members/$(memberId)).data.role;
+      }
+
+      function canManageMember(memberId) {
+        return isAdminOrOwner()
+            && request.auth.uid != memberId
+            && targetRole(memberId) != 'owner'
+            && (isOwner() || targetRole(memberId) in ['member', 'viewer']);
+      }
+
       // Workspace root document
       // • read / create — any authenticated user
       //   (read needed when accepting an invitation; create for new workspace)
-      // • update — members can change anything;
+      // • update — owners/admins may change workspace data;
       //   non-members may only increment memberCount by 1 (invitation acceptance batch)
-      // • delete — members only
+      // • delete — owner only
       allow read:   if request.auth != null;
       allow create: if request.auth != null;
-      allow delete: if isMember();
-      allow update: if isMember()
+      allow delete: if isOwner();
+      allow update: if isAdminOrOwner()
                     || (request.auth != null
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])
                         && request.resource.data.memberCount == resource.data.memberCount + 1);
 
       // Members subcollection
       match /members/{memberId} {
-        allow read, update, delete: if isMember();
+        allow read: if isMember();
+        allow update: if canManageMember(memberId);
+        allow delete: if request.auth != null
+                      && (request.auth.uid == memberId || canManageMember(memberId) || isOwner());
         // create: user creates own member doc (accepting invitation)
-        //         OR existing member creates for another user
+        //         OR owner/admin creates for another user
         allow create: if request.auth != null
-                   && (request.auth.uid == memberId || isMember());
+                   && (request.auth.uid == memberId || isAdminOrOwner());
       }
 
       // Tasks subcollection — members only

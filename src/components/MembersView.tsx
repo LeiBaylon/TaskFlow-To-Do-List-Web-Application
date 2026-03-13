@@ -59,6 +59,7 @@ export default function MembersView() {
     removeMemberAction,
     updateMemberRoleAction,
     leaveWorkspace,
+    deleteWorkspaceAction,
   } = useApp();
 
   const [inviteEmail, setInviteEmail] = useState("");
@@ -68,6 +69,9 @@ export default function MembersView() {
   const [roleDropdownUid, setRoleDropdownUid] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteWorkspaceName, setDeleteWorkspaceName] = useState("");
+  const [deletingWorkspace, setDeletingWorkspace] = useState(false);
 
   const wsId = state.activeWorkspaceId;
   const members = state.workspaceMembers;
@@ -132,6 +136,20 @@ export default function MembersView() {
   const handleLeave = async () => {
     if (!wsId) return;
     await leaveWorkspace(wsId);
+  };
+
+  const handleDeleteWorkspace = async () => {
+    if (!wsId || !activeWs || deletingWorkspace) return;
+    if (deleteWorkspaceName !== activeWs.name) return;
+
+    setDeletingWorkspace(true);
+    try {
+      await deleteWorkspaceAction(wsId);
+      setShowDeleteConfirm(false);
+      setDeleteWorkspaceName("");
+    } finally {
+      setDeletingWorkspace(false);
+    }
   };
 
   const getInitials = (name: string) =>
@@ -334,6 +352,80 @@ export default function MembersView() {
           }
         </div>
       )}
+
+      {isOwner && activeWs && (
+        <div
+          className="rounded-2xl p-4 space-y-3"
+          style={{
+            background: "var(--color-surface)",
+            border: "1px solid rgba(239,68,68,0.2)",
+          }}
+        >
+          <div>
+            <h2 className="text-sm font-semibold" style={{ color: "#ef4444" }}>
+              Danger Zone
+            </h2>
+            <p
+              className="text-xs mt-1"
+              style={{ color: "var(--color-text-tertiary)" }}
+            >
+              Deleting a workspace permanently removes its tasks, folders, chat,
+              invites, and member access.
+            </p>
+          </div>
+
+          {!showDeleteConfirm ? (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-90"
+              style={{ background: "#ef4444" }}
+            >
+              <Trash2 size={14} />
+              Delete workspace
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs" style={{ color: "#ef4444" }}>
+                Type <strong>{activeWs.name}</strong> to confirm permanent deletion.
+              </p>
+              <input
+                value={deleteWorkspaceName}
+                onChange={(e) => setDeleteWorkspaceName(e.target.value)}
+                placeholder={activeWs.name}
+                className="w-full px-3 py-2 rounded-xl text-sm"
+                style={{
+                  background: "var(--color-bg)",
+                  color: "var(--color-text)",
+                  border: "1px solid rgba(239,68,68,0.2)",
+                  outline: "none",
+                }}
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDeleteWorkspace}
+                  disabled={
+                    deletingWorkspace || deleteWorkspaceName !== activeWs.name
+                  }
+                  className="px-3 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-40 transition-opacity"
+                  style={{ background: "#ef4444" }}
+                >
+                  {deletingWorkspace ? "Deleting..." : "Delete permanently"}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteWorkspaceName("");
+                  }}
+                  className="px-3 py-2 rounded-xl text-sm"
+                  style={{ color: "var(--color-text-tertiary)" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -358,6 +450,7 @@ interface MemberRowProps {
 function MemberRow({
   member,
   canManage,
+  isOwner,
   isSelf,
   roleDropdownOpen,
   onToggleRoleDropdown,
@@ -368,7 +461,11 @@ function MemberRow({
   onRemove,
   getInitials,
 }: MemberRowProps) {
-  const canEdit = canManage && member.role !== "owner" && !isSelf;
+  const canEdit =
+    canManage &&
+    member.role !== "owner" &&
+    !isSelf &&
+    (isOwner || member.role !== "admin");
 
   return (
     <div
@@ -429,7 +526,7 @@ function MemberRow({
               className="px-2.5 py-1 rounded-md text-xs font-medium text-white"
               style={{ background: "#ef4444" }}
             >
-              Remove
+              Kick
             </button>
             <button
               onClick={onCancelRemove}
@@ -458,7 +555,7 @@ function MemberRow({
                 onClick={onConfirmRemove}
                 className="p-1 rounded-md transition-opacity hover:opacity-70"
                 style={{ color: "var(--color-text-tertiary)" }}
-                title="Remove member"
+                title="Kick member"
               >
                 <Trash2 size={12} />
               </button>
