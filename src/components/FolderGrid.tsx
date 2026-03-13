@@ -413,7 +413,7 @@ export default function FolderGrid() {
                         e.stopPropagation();
                         setMenuId(menuId === folder.id ? null : folder.id);
                       }}
-                      className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                      className="p-1 rounded-lg transition-opacity shrink-0"
                       style={{ color: "var(--color-text-tertiary)" }}
                     >
                       <MoreHorizontal size={14} />
@@ -571,7 +571,7 @@ export default function FolderGrid() {
                         e.stopPropagation();
                         setMenuId(menuId === folder.id ? null : folder.id);
                       }}
-                      className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="p-1 rounded-lg transition-opacity"
                       style={{ color: "var(--color-text-tertiary)" }}
                     >
                       <MoreHorizontal size={14} />
