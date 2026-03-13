@@ -22,7 +22,10 @@ import {
   FolderOpen,
   Plus,
   ArrowRightLeft,
+  Users,
+  X,
 } from "lucide-react";
+import Image from "next/image";
 import { useApp } from "@/store/AppContext";
 import {
   formatRelativeDate,
@@ -63,7 +66,14 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [showActions, setShowActions] = useState(false);
+  const [showAssignPopover, setShowAssignPopover] = useState(false);
   const { menu, handleContextMenu, closeMenu } = useContextMenu();
+
+  const members = state.workspaceMembers;
+  const currentMember = members.find((m) => m.uid === state.user?.uid);
+  const canAssign =
+    !!state.activeWorkspaceId &&
+    (currentMember?.role === "owner" || currentMember?.role === "admin");
 
   const {
     attributes: dragAttributes,
@@ -117,6 +127,22 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
     }
     setIsEditing(false);
   };
+
+  const toggleTaskAssignee = (member: { uid: string; displayName: string; photoURL: string }) => {
+    const current = task.assignees ?? [];
+    const exists = current.some((a) => a.uid === member.uid);
+    const next = exists ? current.filter((a) => a.uid !== member.uid) : [...current, member];
+    const primary = next[0] ?? null;
+    updateTask(task.id, {
+      assignees: next,
+      assigneeId: primary?.uid || null,
+      assigneeName: primary?.displayName || null,
+      assigneePhotoURL: primary?.photoURL || null,
+    });
+  };
+
+  const getInitials = (name: string) =>
+    name.split(/[\s@]+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || "").join("");
 
   const startFocus = () => {
     dispatch({ type: "SET_FOCUS_TASK", payload: task.id });
@@ -231,6 +257,18 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
         })),
       },
     );
+
+    if (canAssign) {
+      items.push({
+        id: "assign",
+        label: "Assign members",
+        icon: <Users size={14} />,
+        action: () => {
+          setShowAssignPopover(true);
+          closeMenu();
+        },
+      });
+    }
 
     items.push(
       { id: "div2", type: "divider" },
@@ -481,7 +519,35 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
                   {completedSubtasks}/{subtasks.length} subtasks
                 </span>
               )}
-              {task.assigneeName && (
+              {(task.assignees?.length ?? 0) > 0 ? (
+                <span className="inline-flex items-center gap-1">
+                  <span className="flex -space-x-1.5">
+                    {task.assignees!.slice(0, 3).map((a) =>
+                      a.photoURL ?
+                        <Image
+                          key={a.uid}
+                          src={a.photoURL}
+                          alt={a.displayName}
+                          width={16}
+                          height={16}
+                          className="rounded-full ring-1 ring-white dark:ring-gray-900"
+                        />
+                      : <span
+                          key={a.uid}
+                          className="w-4 h-4 rounded-full flex items-center justify-center text-[6px] font-bold ring-1 ring-white dark:ring-gray-900"
+                          style={{ background: "var(--color-accent)", color: "white" }}
+                        >
+                          {getInitials(a.displayName)}
+                        </span>
+                    )}
+                  </span>
+                  {task.assignees!.length > 3 && (
+                    <span className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>
+                      +{task.assignees!.length - 3}
+                    </span>
+                  )}
+                </span>
+              ) : task.assigneeName ? (
                 <span
                   className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0 rounded-full"
                   style={{
@@ -496,15 +562,11 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
                       color: "white",
                     }}
                   >
-                    {task.assigneeName
-                      .split(/[\s@]+/)
-                      .slice(0, 2)
-                      .map((w) => w[0]?.toUpperCase() || "")
-                      .join("")}
+                    {getInitials(task.assigneeName)}
                   </span>
                   {task.assigneeName.split(/[\s@]/)[0]}
                 </span>
-              )}
+              ) : null}
             </div>
 
             {/* Subtask progress bar */}
@@ -535,6 +597,18 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
                 exit={{ opacity: 0, scale: 0.8 }}
                 className="flex items-center gap-0.5"
               >
+                {canAssign && (
+                  <button
+                    onClick={() => setShowAssignPopover(true)}
+                    className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                    title="Assign members"
+                  >
+                    <Users
+                      size={13}
+                      style={{ color: "var(--color-text-tertiary)" }}
+                    />
+                  </button>
+                )}
                 <button
                   onClick={startFocus}
                   className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
@@ -575,6 +649,91 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
             items={contextMenuItems}
             onClose={closeMenu}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Quick-assign popover */}
+      <AnimatePresence>
+        {showAssignPopover && (
+          <>
+            <motion.div
+              className="fixed inset-0 z-50"
+              onClick={() => setShowAssignPopover(false)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="absolute right-0 top-full mt-1 z-50 w-56 rounded-xl shadow-lg py-1"
+              style={{
+                background: "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+              }}
+            >
+              <p
+                className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider"
+                style={{ color: "var(--color-text-tertiary)" }}
+              >
+                Assign members
+              </p>
+              {members.map((m) => {
+                const isSelected = (task.assignees ?? []).some((a) => a.uid === m.uid);
+                return (
+                  <button
+                    key={m.uid}
+                    onClick={() => toggleTaskAssignee(m)}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                  >
+                    {m.photoURL ?
+                      <Image
+                        src={m.photoURL}
+                        alt={m.displayName}
+                        width={20}
+                        height={20}
+                        className="rounded-full shrink-0"
+                      />
+                    : <span
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-[7px] font-bold shrink-0"
+                        style={{ background: "var(--color-accent)", color: "white" }}
+                      >
+                        {getInitials(m.displayName || m.email)}
+                      </span>
+                    }
+                    <span
+                      className="flex-1 text-xs truncate"
+                      style={{ color: "var(--color-text-primary)" }}
+                    >
+                      {m.displayName || m.email}
+                    </span>
+                    <div
+                      className="w-3.5 h-3.5 rounded flex items-center justify-center shrink-0"
+                      style={{
+                        background: isSelected ? "var(--color-accent)" : "transparent",
+                        border: isSelected ? "none" : "1.5px solid var(--color-border)",
+                      }}
+                    >
+                      {isSelected && <Check size={9} color="white" />}
+                    </div>
+                  </button>
+                );
+              })}
+              <div className="px-3 py-1.5">
+                <button
+                  onClick={() => setShowAssignPopover(false)}
+                  className="w-full text-[11px] py-1.5 rounded-lg transition-colors"
+                  style={{
+                    background: "var(--color-accent)",
+                    color: "white",
+                  }}
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>

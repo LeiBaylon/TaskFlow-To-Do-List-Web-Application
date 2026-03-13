@@ -1,5 +1,11 @@
 export type Priority = 1 | 2 | 3 | 4;
 
+export interface TaskAssignee {
+  uid: string;
+  displayName: string;
+  photoURL: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -23,6 +29,7 @@ export interface Task {
   assigneeId?: string | null;
   assigneeName?: string | null;
   assigneePhotoURL?: string | null;
+  assignees?: TaskAssignee[];
   createdBy?: string;
   createdByName?: string;
 }

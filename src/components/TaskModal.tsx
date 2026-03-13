@@ -17,7 +17,9 @@ import {
   Repeat,
   Bell,
   UserCircle2,
+  Check,
 } from "lucide-react";
+import Image from "next/image";
 import { useApp } from "@/store/AppContext";
 import { getPriorityColor, getPriorityLabel } from "@/lib/nlp";
 import type { Priority, Task } from "@/lib/types";
@@ -46,6 +48,7 @@ export default function TaskModal() {
   const [tags, setTags] = useState<string[]>([]);
   const [parentId, setParentId] = useState<string | null>(null);
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
+  const [assignees, setAssignees] = useState<{ uid: string; displayName: string; photoURL: string }[]>([]);
 
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -66,6 +69,7 @@ export default function TaskModal() {
       setTags([...existingTask.tags]);
       setParentId(existingTask.parentId ?? null);
       setAssigneeId(existingTask.assigneeId ?? null);
+      setAssignees(existingTask.assignees ?? []);
     } else {
       setTitle(defaults?.title || "");
       setDescription(defaults?.description || "");
@@ -79,6 +83,7 @@ export default function TaskModal() {
       setTags(defaults?.tags ? [...defaults.tags] : []);
       setParentId(defaults?.parentId ?? null);
       setAssigneeId(null);
+      setAssignees([]);
     }
 
     // Focus title input after mount
@@ -117,10 +122,7 @@ export default function TaskModal() {
       const nextCompletedAt =
         isDone ? existingTask.completedAt || new Date().toISOString() : null;
 
-      const assignee =
-        state.activeWorkspaceId ?
-          state.workspaceMembers.find((m) => m.uid === assigneeId)
-        : null;
+      const primaryAssignee = assignees[0] ?? null;
 
       updateTask(existingTask.id, {
         title: title.trim(),
@@ -136,17 +138,15 @@ export default function TaskModal() {
         folderId,
         tags,
         ...(state.activeWorkspaceId && {
-          assigneeId: assigneeId || null,
-          assigneeName: assignee?.displayName || null,
-          assigneePhotoURL: assignee?.photoURL || null,
+          assigneeId: primaryAssignee?.uid || null,
+          assigneeName: primaryAssignee?.displayName || null,
+          assigneePhotoURL: primaryAssignee?.photoURL || null,
+          assignees,
         }),
       });
     } else {
       const completedAt = isDone ? new Date().toISOString() : null;
-      const assignee =
-        state.activeWorkspaceId ?
-          state.workspaceMembers.find((m) => m.uid === assigneeId)
-        : null;
+      const primaryAssignee = assignees[0] ?? null;
 
       addTask({
         title: title.trim(),
@@ -163,9 +163,10 @@ export default function TaskModal() {
         parentId,
         status,
         ...(state.activeWorkspaceId && {
-          assigneeId: assigneeId || null,
-          assigneeName: assignee?.displayName || null,
-          assigneePhotoURL: assignee?.photoURL || null,
+          assigneeId: primaryAssignee?.uid || null,
+          assigneeName: primaryAssignee?.displayName || null,
+          assigneePhotoURL: primaryAssignee?.photoURL || null,
+          assignees,
         }),
       });
     }
@@ -625,19 +626,19 @@ export default function TaskModal() {
                 </div>
               </div>
 
-              {/* Assignee — workspace owners/admins only */}
+              {/* Assignees — workspace owners/admins only */}
               {state.activeWorkspaceId &&
                 state.workspaceMembers.some(
                   (m) =>
                     m.uid === state.user?.uid &&
                     (m.role === "owner" || m.role === "admin"),
                 ) && (
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
                   <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
                     style={{
                       background:
-                        assigneeId ?
+                        assignees.length > 0 ?
                           "rgba(99,102,241,0.1)"
                         : "var(--color-background)",
                     }}
@@ -646,35 +647,84 @@ export default function TaskModal() {
                       size={13}
                       style={{
                         color:
-                          assigneeId ?
+                          assignees.length > 0 ?
                             "var(--color-accent)"
                           : "var(--color-text-tertiary)",
                       }}
                     />
                   </div>
-                  <div className="relative">
-                    <select
-                      value={assigneeId || ""}
-                      onChange={(e) => setAssigneeId(e.target.value || null)}
-                      className="text-xs px-3 py-2 pr-7 rounded-xl outline-none cursor-pointer appearance-none transition-all"
+                  <div className="flex-1 space-y-1.5">
+                    <p
+                      className="text-[10px] font-medium uppercase tracking-wider"
+                      style={{ color: "var(--color-text-tertiary)" }}
+                    >
+                      Assignees
+                    </p>
+                    <div
+                      className="rounded-xl overflow-hidden"
                       style={{
-                        background: "var(--color-background)",
-                        color: "var(--color-text-primary)",
                         border: "1.5px solid var(--color-border)",
+                        background: "var(--color-background)",
                       }}
                     >
-                      <option value="">Unassigned</option>
-                      {state.workspaceMembers.map((m) => (
-                        <option key={m.uid} value={m.uid}>
-                          {m.displayName || m.email}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      size={11}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                      style={{ color: "var(--color-text-tertiary)" }}
-                    />
+                      {state.workspaceMembers.map((m) => {
+                        const isSelected = assignees.some((a) => a.uid === m.uid);
+                        return (
+                          <button
+                            key={m.uid}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setAssignees(assignees.filter((a) => a.uid !== m.uid));
+                              } else {
+                                setAssignees([...assignees, { uid: m.uid, displayName: m.displayName, photoURL: m.photoURL }]);
+                              }
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                            style={{
+                              background: isSelected ? "var(--color-accent-light)" : "transparent",
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isSelected) e.currentTarget.style.background = "var(--color-bg)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = isSelected ? "var(--color-accent-light)" : "transparent";
+                            }}
+                          >
+                            {m.photoURL ?
+                              <Image
+                                src={m.photoURL}
+                                alt={m.displayName}
+                                width={22}
+                                height={22}
+                                className="rounded-full shrink-0"
+                              />
+                            : <span
+                                className="w-[22px] h-[22px] rounded-full flex items-center justify-center text-[8px] font-bold shrink-0"
+                                style={{ background: "var(--color-accent)", color: "white" }}
+                              >
+                                {(m.displayName || m.email).split(/[\s@]+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || "").join("")}
+                              </span>
+                            }
+                            <span
+                              className="flex-1 text-xs truncate"
+                              style={{ color: "var(--color-text-primary)" }}
+                            >
+                              {m.displayName || m.email}
+                            </span>
+                            <div
+                              className="w-4 h-4 rounded flex items-center justify-center shrink-0"
+                              style={{
+                                background: isSelected ? "var(--color-accent)" : "transparent",
+                                border: isSelected ? "none" : "1.5px solid var(--color-border)",
+                              }}
+                            >
+                              {isSelected && <Check size={10} color="white" />}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
