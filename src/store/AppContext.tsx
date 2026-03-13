@@ -72,6 +72,7 @@ import {
   subscribeDmMessages,
   sendDmMessage,
 } from "@/lib/workspace-firestore";
+import Toast from "@/components/Toast";
 
 // ─── State ────────────────────────────────
 export interface TaskModalState {
@@ -107,6 +108,8 @@ interface AppState {
   // DM state
   activeDmUserId: string | null;
   dmMessages: DirectMessage[];
+  // Toast notification
+  toast: { message: string; type: "success" | "error" } | null;
 }
 
 interface HistorySnapshot {
@@ -148,6 +151,7 @@ const initialState: AppState = {
   workspaceMessages: [],
   activeDmUserId: null,
   dmMessages: [],
+  toast: null,
 };
 
 function nextRecurringDate(dateStr: string, recurrence: Task["recurrence"]) {
@@ -193,7 +197,9 @@ type Action =
   | { type: "SYNC_PENDING_INVITATIONS"; payload: WorkspaceInvitation[] }
   | { type: "SYNC_CHAT_MESSAGES"; payload: WorkspaceMessage[] }
   | { type: "SET_ACTIVE_DM"; payload: string | null }
-  | { type: "SYNC_DM_MESSAGES"; payload: DirectMessage[] };
+  | { type: "SYNC_DM_MESSAGES"; payload: DirectMessage[] }
+  | { type: "SHOW_TOAST"; payload: { message: string; type: "success" | "error" } }
+  | { type: "CLEAR_TOAST" };
 
 function withHistory(state: AppState): Pick<AppState, "history" | "future"> {
   const nextHistory = [
@@ -335,6 +341,10 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, activeDmUserId: action.payload, dmMessages: [] };
     case "SYNC_DM_MESSAGES":
       return { ...state, dmMessages: action.payload };
+    case "SHOW_TOAST":
+      return { ...state, toast: action.payload };
+    case "CLEAR_TOAST":
+      return { ...state, toast: null };
     default:
       return state;
   }
@@ -1032,12 +1042,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const deleteWorkspaceActionFn = useCallback(
     async (wsId: string) => {
       if (!db) return;
+      const wsName =
+        state.workspaces.find((w) => w.workspaceId === wsId)?.name ||
+        "Workspace";
       await deleteWsDoc(db, wsId, state.user?.uid);
       if (state.activeWorkspaceId === wsId) {
         dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: null });
       }
+      dispatch({
+        type: "SHOW_TOAST",
+        payload: { message: `"${wsName}" has been deleted`, type: "success" },
+      });
     },
-    [state.activeWorkspaceId, state.user?.uid],
+    [state.activeWorkspaceId, state.user?.uid, state.workspaces],
   );
 
   const inviteToWorkspaceAction = useCallback(
@@ -1160,6 +1177,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [state.user, state.activeWorkspaceId, state.activeDmUserId],
   );
 
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!state.toast) return;
+    const timer = setTimeout(() => dispatch({ type: "CLEAR_TOAST" }), 4000);
+    return () => clearTimeout(timer);
+  }, [state.toast]);
+
   return (
     <AppContext.Provider
       value={{
@@ -1196,6 +1220,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+      {state.toast && <Toast message={state.toast.message} type={state.toast.type} onClose={() => dispatch({ type: "CLEAR_TOAST" })} />}
     </AppContext.Provider>
   );
 }
