@@ -47,8 +47,9 @@ export default function TaskModal() {
   const [tagsInput, setTagsInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [parentId, setParentId] = useState<string | null>(null);
-  const [assigneeId, setAssigneeId] = useState<string | null>(null);
-  const [assignees, setAssignees] = useState<{ uid: string; displayName: string; photoURL: string }[]>([]);
+  const [assignees, setAssignees] = useState<
+    { uid: string; displayName: string; photoURL: string }[]
+  >([]);
 
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -68,7 +69,6 @@ export default function TaskModal() {
       setFolderId(existingTask.folderId);
       setTags([...existingTask.tags]);
       setParentId(existingTask.parentId ?? null);
-      setAssigneeId(existingTask.assigneeId ?? null);
       setAssignees(existingTask.assignees ?? []);
     } else {
       setTitle(defaults?.title || "");
@@ -82,7 +82,6 @@ export default function TaskModal() {
       setFolderId(defaults?.folderId || state.activeFolderId);
       setTags(defaults?.tags ? [...defaults.tags] : []);
       setParentId(defaults?.parentId ?? null);
-      setAssigneeId(null);
       setAssignees([]);
     }
 
@@ -633,101 +632,135 @@ export default function TaskModal() {
                     m.uid === state.user?.uid &&
                     (m.role === "owner" || m.role === "admin"),
                 ) && (
-                <div className="flex items-start gap-3">
-                  <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                    style={{
-                      background:
-                        assignees.length > 0 ?
-                          "rgba(99,102,241,0.1)"
-                        : "var(--color-background)",
-                    }}
-                  >
-                    <UserCircle2
-                      size={13}
-                      style={{
-                        color:
-                          assignees.length > 0 ?
-                            "var(--color-accent)"
-                          : "var(--color-text-tertiary)",
-                      }}
-                    />
-                  </div>
-                  <div className="flex-1 space-y-1.5">
-                    <p
-                      className="text-[10px] font-medium uppercase tracking-wider"
-                      style={{ color: "var(--color-text-tertiary)" }}
-                    >
-                      Assignees
-                    </p>
+                  <div className="flex items-start gap-3">
                     <div
-                      className="rounded-xl overflow-hidden"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
                       style={{
-                        border: "1.5px solid var(--color-border)",
-                        background: "var(--color-background)",
+                        background:
+                          assignees.length > 0 ?
+                            "rgba(99,102,241,0.1)"
+                          : "var(--color-background)",
                       }}
                     >
-                      {state.workspaceMembers.map((m) => {
-                        const isSelected = assignees.some((a) => a.uid === m.uid);
-                        return (
-                          <button
-                            key={m.uid}
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                setAssignees(assignees.filter((a) => a.uid !== m.uid));
-                              } else {
-                                setAssignees([...assignees, { uid: m.uid, displayName: m.displayName, photoURL: m.photoURL }]);
-                              }
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
-                            style={{
-                              background: isSelected ? "var(--color-accent-light)" : "transparent",
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!isSelected) e.currentTarget.style.background = "var(--color-bg)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = isSelected ? "var(--color-accent-light)" : "transparent";
-                            }}
-                          >
-                            {m.photoURL ?
-                              <Image
-                                src={m.photoURL}
-                                alt={m.displayName}
-                                width={22}
-                                height={22}
-                                className="rounded-full shrink-0"
-                              />
-                            : <span
-                                className="w-[22px] h-[22px] rounded-full flex items-center justify-center text-[8px] font-bold shrink-0"
-                                style={{ background: "var(--color-accent)", color: "white" }}
-                              >
-                                {(m.displayName || m.email).split(/[\s@]+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || "").join("")}
-                              </span>
-                            }
-                            <span
-                              className="flex-1 text-xs truncate"
-                              style={{ color: "var(--color-text-primary)" }}
-                            >
-                              {m.displayName || m.email}
-                            </span>
-                            <div
-                              className="w-4 h-4 rounded flex items-center justify-center shrink-0"
+                      <UserCircle2
+                        size={13}
+                        style={{
+                          color:
+                            assignees.length > 0 ?
+                              "var(--color-accent)"
+                            : "var(--color-text-tertiary)",
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 space-y-1.5">
+                      <p
+                        className="text-[10px] font-medium uppercase tracking-wider"
+                        style={{ color: "var(--color-text-tertiary)" }}
+                      >
+                        Assignees
+                      </p>
+                      <div
+                        className="rounded-xl overflow-hidden"
+                        style={{
+                          border: "1.5px solid var(--color-border)",
+                          background: "var(--color-background)",
+                        }}
+                      >
+                        {state.workspaceMembers.map((m) => {
+                          const isSelected = assignees.some(
+                            (a) => a.uid === m.uid,
+                          );
+                          return (
+                            <button
+                              key={m.uid}
+                              type="button"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setAssignees(
+                                    assignees.filter((a) => a.uid !== m.uid),
+                                  );
+                                } else {
+                                  setAssignees([
+                                    ...assignees,
+                                    {
+                                      uid: m.uid,
+                                      displayName: m.displayName,
+                                      photoURL: m.photoURL,
+                                    },
+                                  ]);
+                                }
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
                               style={{
-                                background: isSelected ? "var(--color-accent)" : "transparent",
-                                border: isSelected ? "none" : "1.5px solid var(--color-border)",
+                                background:
+                                  isSelected ?
+                                    "var(--color-accent-light)"
+                                  : "transparent",
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isSelected)
+                                  e.currentTarget.style.background =
+                                    "var(--color-bg)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background =
+                                  isSelected ?
+                                    "var(--color-accent-light)"
+                                  : "transparent";
                               }}
                             >
-                              {isSelected && <Check size={10} color="white" />}
-                            </div>
-                          </button>
-                        );
-                      })}
+                              {m.photoURL ?
+                                <Image
+                                  src={m.photoURL}
+                                  alt={m.displayName}
+                                  width={22}
+                                  height={22}
+                                  className="rounded-full shrink-0"
+                                />
+                              : <span
+                                  className="w-5.5 h-5.5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0"
+                                  style={{
+                                    background: "var(--color-accent)",
+                                    color: "white",
+                                  }}
+                                >
+                                  {(m.displayName || m.email)
+                                    .split(/[\s@]+/)
+                                    .slice(0, 2)
+                                    .map((w) => w[0]?.toUpperCase() || "")
+                                    .join("")}
+                                </span>
+                              }
+                              <span
+                                className="flex-1 text-xs truncate"
+                                style={{ color: "var(--color-text-primary)" }}
+                              >
+                                {m.displayName || m.email}
+                              </span>
+                              <div
+                                className="w-4 h-4 rounded flex items-center justify-center shrink-0"
+                                style={{
+                                  background:
+                                    isSelected ?
+                                      "var(--color-accent)"
+                                    : "transparent",
+                                  border:
+                                    isSelected ? "none" : (
+                                      "1.5px solid var(--color-border)"
+                                    ),
+                                }}
+                              >
+                                {isSelected && (
+                                  <Check size={10} color="white" />
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Tags */}
               <div className="flex items-start gap-3">

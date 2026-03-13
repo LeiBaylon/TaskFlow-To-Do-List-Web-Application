@@ -384,11 +384,11 @@ export default function FolderGrid() {
                               alt={a.displayName}
                               width={18}
                               height={18}
-                              className="rounded-full ring-1 ring-[var(--color-surface)]"
+                              className="rounded-full ring-1 ring-(--color-surface)"
                             />
                           : <span
                               key={a.uid}
-                              className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[6px] font-bold ring-1 ring-[var(--color-surface)]"
+                              className="w-4.5 h-4.5 rounded-full flex items-center justify-center text-[6px] font-bold ring-1 ring-(--color-surface)"
                               style={{
                                 background: "var(--color-accent)",
                                 color: "white",
@@ -647,11 +647,11 @@ export default function FolderGrid() {
                               alt={a.displayName}
                               width={20}
                               height={20}
-                              className="rounded-full ring-1 ring-[var(--color-surface)]"
+                              className="rounded-full ring-1 ring-(--color-surface)"
                             />
                           : <span
                               key={a.uid}
-                              className="w-5 h-5 rounded-full flex items-center justify-center text-[7px] font-bold ring-1 ring-[var(--color-surface)]"
+                              className="w-5 h-5 rounded-full flex items-center justify-center text-[7px] font-bold ring-1 ring-(--color-surface)"
                               style={{
                                 background: "var(--color-accent)",
                                 color: "white",

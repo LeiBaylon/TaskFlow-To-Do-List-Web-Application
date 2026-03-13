@@ -23,7 +23,6 @@ import {
   Plus,
   ArrowRightLeft,
   Users,
-  X,
 } from "lucide-react";
 import Image from "next/image";
 import { useApp } from "@/store/AppContext";
@@ -128,10 +127,17 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
     setIsEditing(false);
   };
 
-  const toggleTaskAssignee = (member: { uid: string; displayName: string; photoURL: string }) => {
+  const toggleTaskAssignee = (member: {
+    uid: string;
+    displayName: string;
+    photoURL: string;
+  }) => {
     const current = task.assignees ?? [];
     const exists = current.some((a) => a.uid === member.uid);
-    const next = exists ? current.filter((a) => a.uid !== member.uid) : [...current, member];
+    const next =
+      exists ?
+        current.filter((a) => a.uid !== member.uid)
+      : [...current, member];
     const primary = next[0] ?? null;
     updateTask(task.id, {
       assignees: next,
@@ -142,7 +148,11 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
   };
 
   const getInitials = (name: string) =>
-    name.split(/[\s@]+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || "").join("");
+    name
+      .split(/[\s@]+/)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase() || "")
+      .join("");
 
   const startFocus = () => {
     dispatch({ type: "SET_FOCUS_TASK", payload: task.id });
@@ -519,7 +529,7 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
                   {completedSubtasks}/{subtasks.length} subtasks
                 </span>
               )}
-              {(task.assignees?.length ?? 0) > 0 ? (
+              {(task.assignees?.length ?? 0) > 0 ?
                 <span className="inline-flex items-center gap-1">
                   <span className="flex -space-x-1.5">
                     {task.assignees!.slice(0, 3).map((a) =>
@@ -535,19 +545,25 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
                       : <span
                           key={a.uid}
                           className="w-4 h-4 rounded-full flex items-center justify-center text-[6px] font-bold ring-1 ring-white dark:ring-gray-900"
-                          style={{ background: "var(--color-accent)", color: "white" }}
+                          style={{
+                            background: "var(--color-accent)",
+                            color: "white",
+                          }}
                         >
                           {getInitials(a.displayName)}
-                        </span>
+                        </span>,
                     )}
                   </span>
                   {task.assignees!.length > 3 && (
-                    <span className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>
+                    <span
+                      className="text-[10px]"
+                      style={{ color: "var(--color-text-tertiary)" }}
+                    >
                       +{task.assignees!.length - 3}
                     </span>
                   )}
                 </span>
-              ) : task.assigneeName ? (
+              : task.assigneeName ?
                 <span
                   className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0 rounded-full"
                   style={{
@@ -566,7 +582,7 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
                   </span>
                   {task.assigneeName.split(/[\s@]/)[0]}
                 </span>
-              ) : null}
+              : null}
             </div>
 
             {/* Subtask progress bar */}
@@ -680,7 +696,9 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
                 Assign members
               </p>
               {members.map((m) => {
-                const isSelected = (task.assignees ?? []).some((a) => a.uid === m.uid);
+                const isSelected = (task.assignees ?? []).some(
+                  (a) => a.uid === m.uid,
+                );
                 return (
                   <button
                     key={m.uid}
@@ -697,7 +715,10 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
                       />
                     : <span
                         className="w-5 h-5 rounded-full flex items-center justify-center text-[7px] font-bold shrink-0"
-                        style={{ background: "var(--color-accent)", color: "white" }}
+                        style={{
+                          background: "var(--color-accent)",
+                          color: "white",
+                        }}
                       >
                         {getInitials(m.displayName || m.email)}
                       </span>
@@ -711,8 +732,12 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
                     <div
                       className="w-3.5 h-3.5 rounded flex items-center justify-center shrink-0"
                       style={{
-                        background: isSelected ? "var(--color-accent)" : "transparent",
-                        border: isSelected ? "none" : "1.5px solid var(--color-border)",
+                        background:
+                          isSelected ? "var(--color-accent)" : "transparent",
+                        border:
+                          isSelected ? "none" : (
+                            "1.5px solid var(--color-border)"
+                          ),
                       }}
                     >
                       {isSelected && <Check size={9} color="white" />}

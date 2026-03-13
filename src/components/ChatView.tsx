@@ -277,8 +277,8 @@ export default function ChatView() {
       };
       if (isDm) sendDm("", attachment);
       else sendMessage("", attachment);
-    } catch (err) {
-      console.error("Upload failed:", err);
+    } catch {
+      // upload error handled silently
     } finally {
       setUploading(false);
     }
@@ -578,7 +578,9 @@ export default function ChatView() {
                           className="rounded-2xl text-sm overflow-hidden"
                           style={{
                             background:
-                              isOwn ? "var(--color-accent)" : "var(--color-surface-hover)",
+                              isOwn ?
+                                "var(--color-accent)"
+                              : "var(--color-surface-hover)",
                             color: isOwn ? "#fff" : "var(--color-text)",
                             borderBottomRightRadius: isOwn ? 6 : undefined,
                             borderBottomLeftRadius: !isOwn ? 6 : undefined,

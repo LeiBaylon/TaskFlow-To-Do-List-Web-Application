@@ -148,8 +148,7 @@ export default function MembersView() {
       await deleteWorkspaceAction(wsId);
       setShowDeleteConfirm(false);
       setDeleteWorkspaceName("");
-    } catch (err) {
-      console.error("Failed to delete workspace:", err);
+    } catch {
       setDeleteError("Failed to delete workspace. Please try again.");
       setTimeout(() => setDeleteError(null), 5000);
     } finally {
@@ -379,7 +378,7 @@ export default function MembersView() {
             </p>
           </div>
 
-          {!showDeleteConfirm ? (
+          {!showDeleteConfirm ?
             <button
               onClick={() => setShowDeleteConfirm(true)}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-90"
@@ -388,10 +387,10 @@ export default function MembersView() {
               <Trash2 size={14} />
               Delete workspace
             </button>
-          ) : (
-            <div className="space-y-3">
+          : <div className="space-y-3">
               <p className="text-xs" style={{ color: "#ef4444" }}>
-                Type <strong>{activeWs.name}</strong> to confirm permanent deletion.
+                Type <strong>{activeWs.name}</strong> to confirm permanent
+                deletion.
               </p>
               <input
                 value={deleteWorkspaceName}
@@ -434,7 +433,7 @@ export default function MembersView() {
                 </p>
               )}
             </div>
-          )}
+          }
         </div>
       )}
     </div>

@@ -444,7 +444,6 @@ export default function Home() {
                 <div className="flex flex-col h-full">
                   {/* Floating view switcher nav */}
                   <div className="mb-5 mx-auto w-full max-w-140">
-                    {/* Floating view switcher nav */}
                     <div
                       className="w-full flex items-center gap-1 p-1 rounded-2xl relative"
                       style={{
@@ -456,17 +455,17 @@ export default function Home() {
                       {(
                         [
                           {
-                            mode: "list" as const,
+                            mode: "list",
                             icon: <LayoutList size={14} />,
                             label: "List",
                           },
                           {
-                            mode: "kanban" as const,
+                            mode: "kanban",
                             icon: <Kanban size={14} />,
                             label: "Board",
                           },
                           {
-                            mode: "calendar" as const,
+                            mode: "calendar",
                             icon: <CalendarDays size={14} />,
                             label: "Cal",
                           },
