@@ -625,8 +625,13 @@ export default function TaskModal() {
                 </div>
               </div>
 
-              {/* Assignee — workspace only */}
-              {state.activeWorkspaceId && (
+              {/* Assignee — workspace owners/admins only */}
+              {state.activeWorkspaceId &&
+                state.workspaceMembers.some(
+                  (m) =>
+                    m.uid === state.user?.uid &&
+                    (m.role === "owner" || m.role === "admin"),
+                ) && (
                 <div className="flex items-center gap-3">
                   <div
                     className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"

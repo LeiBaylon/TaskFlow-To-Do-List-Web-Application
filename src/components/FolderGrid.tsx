@@ -11,9 +11,13 @@ import {
   Check,
   LayoutGrid,
   List,
+  Users,
+  X,
 } from "lucide-react";
+import Image from "next/image";
 import { useApp } from "@/store/AppContext";
 import ConfirmDialog from "./ConfirmDialog";
+import type { FolderAssignee } from "@/lib/types";
 
 const PALETTE = [
   "#6366f1",
@@ -42,7 +46,14 @@ export default function FolderGrid() {
     name: string;
     total: number;
   } | null>(null);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
   const newInputRef = useRef<HTMLInputElement>(null);
+
+  const members = state.workspaceMembers;
+  const currentMember = members.find((m) => m.uid === state.user?.uid);
+  const canManage =
+    !!state.activeWorkspaceId &&
+    (currentMember?.role === "owner" || currentMember?.role === "admin");
 
   const taskCounts = useMemo(() => {
     const counts: Record<
@@ -76,6 +87,25 @@ export default function FolderGrid() {
     setNewName("");
     setNewColor(PALETTE[0]);
     setShowNew(false);
+  }
+
+  function toggleAssignee(folderId: string, member: { uid: string; displayName: string; photoURL: string }) {
+    const folder = state.folders.find((f) => f.id === folderId);
+    if (!folder) return;
+    const current: FolderAssignee[] = folder.assignees || [];
+    const exists = current.some((a) => a.uid === member.uid);
+    const next = exists
+      ? current.filter((a) => a.uid !== member.uid)
+      : [...current, { uid: member.uid, displayName: member.displayName, photoURL: member.photoURL }];
+    updateFolder(folderId, { assignees: next });
+  }
+
+  function getInitials(name: string) {
+    return name
+      .split(/[\s@]+/)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase() || "")
+      .join("");
   }
 
   const container = {
@@ -343,6 +373,41 @@ export default function FolderGrid() {
                       {counts.pending} pending
                     </span>
 
+                    {/* Assigned members */}
+                    {folder.assignees && folder.assignees.length > 0 && (
+                      <div className="flex -space-x-1.5 shrink-0">
+                        {folder.assignees.slice(0, 3).map((a) =>
+                          a.photoURL ?
+                            <Image
+                              key={a.uid}
+                              src={a.photoURL}
+                              alt={a.displayName}
+                              width={18}
+                              height={18}
+                              className="rounded-full ring-1 ring-[var(--color-surface)]"
+                            />
+                          : <span
+                              key={a.uid}
+                              className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[6px] font-bold ring-1 ring-[var(--color-surface)]"
+                              style={{
+                                background: "var(--color-accent)",
+                                color: "white",
+                              }}
+                            >
+                              {getInitials(a.displayName)}
+                            </span>,
+                        )}
+                        {folder.assignees.length > 3 && (
+                          <span
+                            className="text-[10px] ml-1"
+                            style={{ color: "var(--color-text-tertiary)" }}
+                          >
+                            +{folder.assignees.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -419,6 +484,29 @@ export default function FolderGrid() {
                               />
                             ))}
                           </div>
+                          {canManage && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAssigningId(folder.id);
+                                setMenuId(null);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
+                              style={{
+                                color: "var(--color-text-secondary)",
+                                borderTop: "1px solid var(--color-border)",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.background =
+                                  "var(--color-accent-light)")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.background = "transparent")
+                              }
+                            >
+                              <Users size={12} /> Assign
+                            </button>
+                          )}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -546,6 +634,43 @@ export default function FolderGrid() {
                       transition={{ duration: 0.6, ease: "easeOut" }}
                     />
                   </div>
+
+                  {/* Assigned members */}
+                  {folder.assignees && folder.assignees.length > 0 && (
+                    <div className="flex items-center gap-1 mt-3">
+                      <div className="flex -space-x-1.5">
+                        {folder.assignees.slice(0, 4).map((a) =>
+                          a.photoURL ?
+                            <Image
+                              key={a.uid}
+                              src={a.photoURL}
+                              alt={a.displayName}
+                              width={20}
+                              height={20}
+                              className="rounded-full ring-1 ring-[var(--color-surface)]"
+                            />
+                          : <span
+                              key={a.uid}
+                              className="w-5 h-5 rounded-full flex items-center justify-center text-[7px] font-bold ring-1 ring-[var(--color-surface)]"
+                              style={{
+                                background: "var(--color-accent)",
+                                color: "white",
+                              }}
+                            >
+                              {getInitials(a.displayName)}
+                            </span>,
+                        )}
+                      </div>
+                      {folder.assignees.length > 4 && (
+                        <span
+                          className="text-[10px]"
+                          style={{ color: "var(--color-text-tertiary)" }}
+                        >
+                          +{folder.assignees.length - 4}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Dropdown menu */}
@@ -611,6 +736,29 @@ export default function FolderGrid() {
                             />
                           ))}
                         </div>
+                        {canManage && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAssigningId(folder.id);
+                              setMenuId(null);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
+                            style={{
+                              color: "var(--color-text-secondary)",
+                              borderTop: "1px solid var(--color-border)",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.background =
+                                "var(--color-accent-light)")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.background = "transparent")
+                            }
+                          >
+                            <Users size={12} /> Assign
+                          </button>
+                        )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -670,6 +818,136 @@ export default function FolderGrid() {
           setDeleteCandidate(null);
         }}
       />
+
+      {/* Assign members panel */}
+      <AnimatePresence>
+        {assigningId && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40"
+              style={{ background: "rgba(0,0,0,0.5)" }}
+              onClick={() => setAssigningId(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-80 rounded-2xl shadow-2xl overflow-hidden"
+              style={{
+                background: "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+              }}
+            >
+              <div
+                className="flex items-center justify-between px-4 py-3"
+                style={{ borderBottom: "1px solid var(--color-border)" }}
+              >
+                <h3
+                  className="text-sm font-semibold"
+                  style={{ color: "var(--color-text)" }}
+                >
+                  Assign Members
+                </h3>
+                <button
+                  onClick={() => setAssigningId(null)}
+                  className="p-1 rounded-lg transition-opacity hover:opacity-70"
+                  style={{ color: "var(--color-text-tertiary)" }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                {members.map((m) => {
+                  const folder = state.folders.find((f) => f.id === assigningId);
+                  const isAssigned = folder?.assignees?.some((a) => a.uid === m.uid) ?? false;
+                  return (
+                    <button
+                      key={m.uid}
+                      onClick={() =>
+                        toggleAssignee(assigningId!, {
+                          uid: m.uid,
+                          displayName: m.displayName,
+                          photoURL: m.photoURL,
+                        })
+                      }
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors"
+                      style={{
+                        background: isAssigned ? "var(--color-accent-light)" : "transparent",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isAssigned)
+                          e.currentTarget.style.background = "var(--color-bg)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = isAssigned
+                          ? "var(--color-accent-light)"
+                          : "transparent";
+                      }}
+                    >
+                      {m.photoURL ?
+                        <Image
+                          src={m.photoURL}
+                          alt={m.displayName}
+                          width={28}
+                          height={28}
+                          className="rounded-full shrink-0"
+                        />
+                      : <span
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
+                          style={{
+                            background: "var(--color-accent)",
+                            color: "white",
+                          }}
+                        >
+                          {getInitials(m.displayName || m.email)}
+                        </span>
+                      }
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className="text-xs font-medium truncate"
+                          style={{ color: "var(--color-text)" }}
+                        >
+                          {m.displayName || m.email}
+                        </p>
+                        <p
+                          className="text-[10px] truncate"
+                          style={{ color: "var(--color-text-tertiary)" }}
+                        >
+                          {m.email}
+                        </p>
+                      </div>
+                      <div
+                        className="w-5 h-5 rounded-md flex items-center justify-center shrink-0"
+                        style={{
+                          background: isAssigned ? "var(--color-accent)" : "var(--color-bg)",
+                          border: isAssigned ? "none" : "1.5px solid var(--color-border)",
+                        }}
+                      >
+                        {isAssigned && <Check size={12} color="white" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div
+                className="px-4 py-3 flex justify-end"
+                style={{ borderTop: "1px solid var(--color-border)" }}
+              >
+                <button
+                  onClick={() => setAssigningId(null)}
+                  className="px-4 py-1.5 rounded-xl text-xs font-medium text-white"
+                  style={{ background: "var(--color-accent)" }}
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

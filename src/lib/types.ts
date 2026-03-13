@@ -27,6 +27,12 @@ export interface Task {
   createdByName?: string;
 }
 
+export interface FolderAssignee {
+  uid: string;
+  displayName: string;
+  photoURL: string;
+}
+
 export interface Folder {
   id: string;
   name: string;
@@ -34,6 +40,7 @@ export interface Folder {
   color?: string;
   order: number;
   createdAt: string;
+  assignees?: FolderAssignee[];
 }
 
 export interface UserProfile {
