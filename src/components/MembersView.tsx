@@ -272,7 +272,7 @@ export default function MembersView() {
 
       {/* Members list */}
       <div
-        className="rounded-2xl overflow-hidden"
+        className="rounded-2xl"
         style={{
           background: "var(--color-surface)",
           border: "1px solid var(--color-border)",

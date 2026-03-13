@@ -578,7 +578,7 @@ export default function ChatView() {
                           className="rounded-2xl text-sm overflow-hidden"
                           style={{
                             background:
-                              isOwn ? "var(--color-accent)" : "var(--color-bg)",
+                              isOwn ? "var(--color-accent)" : "var(--color-surface)",
                             color: isOwn ? "#fff" : "var(--color-text)",
                             borderBottomRightRadius: isOwn ? 6 : undefined,
                             borderBottomLeftRadius: !isOwn ? 6 : undefined,
