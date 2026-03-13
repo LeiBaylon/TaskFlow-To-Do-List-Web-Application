@@ -72,6 +72,7 @@ export default function MembersView() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteWorkspaceName, setDeleteWorkspaceName] = useState("");
   const [deletingWorkspace, setDeletingWorkspace] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const wsId = state.activeWorkspaceId;
   const members = state.workspaceMembers;
@@ -149,7 +150,8 @@ export default function MembersView() {
       setDeleteWorkspaceName("");
     } catch (err) {
       console.error("Failed to delete workspace:", err);
-      alert("Failed to delete workspace. Please try again.");
+      setDeleteError("Failed to delete workspace. Please try again.");
+      setTimeout(() => setDeleteError(null), 5000);
     } finally {
       setDeletingWorkspace(false);
     }
@@ -418,6 +420,7 @@ export default function MembersView() {
                   onClick={() => {
                     setShowDeleteConfirm(false);
                     setDeleteWorkspaceName("");
+                    setDeleteError(null);
                   }}
                   className="px-3 py-2 rounded-xl text-sm"
                   style={{ color: "var(--color-text-tertiary)" }}
@@ -425,6 +428,11 @@ export default function MembersView() {
                   Cancel
                 </button>
               </div>
+              {deleteError && (
+                <p className="text-xs font-medium" style={{ color: "#ef4444" }}>
+                  {deleteError}
+                </p>
+              )}
             </div>
           )}
         </div>

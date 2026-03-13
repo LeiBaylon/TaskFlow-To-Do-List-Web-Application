@@ -1032,12 +1032,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const deleteWorkspaceActionFn = useCallback(
     async (wsId: string) => {
       if (!db) return;
-      await deleteWsDoc(db, wsId);
+      await deleteWsDoc(db, wsId, state.user?.uid);
       if (state.activeWorkspaceId === wsId) {
         dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: null });
       }
     },
-    [state.activeWorkspaceId],
+    [state.activeWorkspaceId, state.user?.uid],
   );
 
   const inviteToWorkspaceAction = useCallback(

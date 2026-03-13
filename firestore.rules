@@ -118,20 +118,24 @@ service cloud.firestore {
       }
 
       // DM channels — only participants who are workspace members
+      // Owners can read/delete all DMs (for workspace cleanup)
       match /dms/{channelId} {
         allow read: if isMember()
-          && request.auth.uid in resource.data.participants;
+          && (request.auth.uid in resource.data.participants || isOwner());
         allow create: if isMember()
           && request.auth.uid in request.resource.data.participants
           && request.resource.data.participants.size() == 2;
+        allow delete: if isOwner();
 
         // DM messages within a channel
         match /messages/{msgId} {
           allow read: if isMember()
-            && request.auth.uid in get(/databases/$(database)/documents/workspaces/$(wsId)/dms/$(channelId)).data.participants;
+            && (request.auth.uid in get(/databases/$(database)/documents/workspaces/$(wsId)/dms/$(channelId)).data.participants
+                || isOwner());
           allow create: if isMember()
             && request.auth.uid == request.resource.data.senderId
             && request.auth.uid in get(/databases/$(database)/documents/workspaces/$(wsId)/dms/$(channelId)).data.participants;
+          allow delete: if isOwner();
         }
       }
     }
@@ -150,10 +154,19 @@ service cloud.firestore {
             && request.auth.token.email.lower() == resource.data.invitedEmail;
       }
 
+      function isWsOwnerOrAdmin() {
+        return request.auth != null
+            && exists(/databases/$(database)/documents/workspaces/$(resource.data.workspaceId)/members/$(request.auth.uid))
+            && get(/databases/$(database)/documents/workspaces/$(resource.data.workspaceId)/members/$(request.auth.uid)).data.role in ['owner', 'admin'];
+      }
+
       // Any authenticated user can create invitations
       allow create: if request.auth != null;
-      // Only the invited user can read / accept / decline
-      allow read, update: if invitedUserMatches();
+      // Invited user can read / accept / decline; workspace owners/admins can read for cleanup
+      allow read: if invitedUserMatches() || isWsOwnerOrAdmin();
+      allow update: if invitedUserMatches();
+      // Workspace owners/admins can delete invitations (workspace cleanup)
+      allow delete: if isWsOwnerOrAdmin();
     }
   }
 }

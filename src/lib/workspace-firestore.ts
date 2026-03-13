@@ -119,29 +119,53 @@ export async function createWorkspace(
   await batch.commit();
 }
 
-export async function deleteWorkspace(db: Firestore, wsId: string) {
-  // Gather all subcollection/related docs first so we know what to clean up
+export async function deleteWorkspace(
+  db: Firestore,
+  wsId: string,
+  currentUid?: string,
+) {
+  // Gather all subcollection docs first so we know what to clean up
   const membersSnap = await getDocs(wsMembersCol(db, wsId));
   const tasksSnap = await getDocs(wsTasksCol(db, wsId));
   const foldersSnap = await getDocs(wsFoldersCol(db, wsId));
   const activitySnap = await getDocs(wsActivityCol(db, wsId));
   const messagesSnap = await getDocs(wsMessagesCol(db, wsId));
-  const dmsSnap = await getDocs(wsDmsCol(db, wsId));
-  const invitationsSnap = await getDocs(
-    query(invitationsCol(db), where("workspaceId", "==", wsId)),
-  );
+
+  // DMs and invitations may fail due to security rules; treat as best-effort
+  let dmsSnap: Awaited<ReturnType<typeof getDocs>> | null = null;
+  let invitationsSnap: Awaited<ReturnType<typeof getDocs>> | null = null;
+  try {
+    dmsSnap = await getDocs(wsDmsCol(db, wsId));
+  } catch (err) {
+    console.warn("deleteWorkspace: could not read DM channels:", err);
+  }
+  try {
+    invitationsSnap = await getDocs(
+      query(invitationsCol(db), where("workspaceId", "==", wsId)),
+    );
+  } catch (err) {
+    console.warn("deleteWorkspace: could not read invitations:", err);
+  }
 
   // Delete workspace root doc FIRST while the owner's member doc still exists,
   // otherwise the isOwner() security rule check will fail.
   await deleteRefsInBatches(db, [wsDoc(db, wsId)]);
 
-  // Now delete all remaining subcollection and related documents
+  // Now delete all remaining subcollection and related documents.
+  // Keep the current user's member doc until the very end so isMember()
+  // checks pass for all subcollection deletions across batches.
   const refsToDelete: DocumentReference[] = [];
+  const deferredRefs: DocumentReference[] = [];
 
   // Member workspace refs + member docs
   membersSnap.docs.forEach((d) => {
-    refsToDelete.push(userWsDoc(db, d.data().uid, wsId));
-    refsToDelete.push(d.ref);
+    const uid = d.data().uid;
+    refsToDelete.push(userWsDoc(db, uid, wsId));
+    if (currentUid && uid === currentUid) {
+      deferredRefs.push(d.ref);
+    } else {
+      refsToDelete.push(d.ref);
+    }
   });
 
   tasksSnap.docs.forEach((d) => refsToDelete.push(d.ref));
@@ -150,15 +174,34 @@ export async function deleteWorkspace(db: Firestore, wsId: string) {
   messagesSnap.docs.forEach((d) => refsToDelete.push(d.ref));
 
   // DM messages and channel docs
-  for (const channelDoc of dmsSnap.docs) {
-    const dmMessagesSnap = await getDocs(collection(channelDoc.ref, "messages"));
-    dmMessagesSnap.docs.forEach((d) => refsToDelete.push(d.ref));
-    refsToDelete.push(channelDoc.ref);
+  if (dmsSnap) {
+    for (const channelDoc of dmsSnap.docs) {
+      try {
+        const dmMessagesSnap = await getDocs(
+          collection(channelDoc.ref, "messages"),
+        );
+        dmMessagesSnap.docs.forEach((d) =>
+          refsToDelete.push(d.ref as DocumentReference),
+        );
+      } catch {
+        // DM message read may be denied; skip
+      }
+      refsToDelete.push(channelDoc.ref as DocumentReference);
+    }
   }
 
-  invitationsSnap.docs.forEach((d) => refsToDelete.push(d.ref));
+  if (invitationsSnap) {
+    invitationsSnap.docs.forEach((d) =>
+      refsToDelete.push(d.ref as DocumentReference),
+    );
+  }
 
   await deleteRefsInBatches(db, refsToDelete);
+
+  // Delete the current user's member doc last
+  if (deferredRefs.length > 0) {
+    await deleteRefsInBatches(db, deferredRefs);
+  }
 }
 
 export async function updateWorkspace(
