@@ -120,47 +120,43 @@ export async function createWorkspace(
 }
 
 export async function deleteWorkspace(db: Firestore, wsId: string) {
+  // Gather all subcollection/related docs first so we know what to clean up
+  const membersSnap = await getDocs(wsMembersCol(db, wsId));
+  const tasksSnap = await getDocs(wsTasksCol(db, wsId));
+  const foldersSnap = await getDocs(wsFoldersCol(db, wsId));
+  const activitySnap = await getDocs(wsActivityCol(db, wsId));
+  const messagesSnap = await getDocs(wsMessagesCol(db, wsId));
+  const dmsSnap = await getDocs(wsDmsCol(db, wsId));
+  const invitationsSnap = await getDocs(
+    query(invitationsCol(db), where("workspaceId", "==", wsId)),
+  );
+
+  // Delete workspace root doc FIRST while the owner's member doc still exists,
+  // otherwise the isOwner() security rule check will fail.
+  await deleteRefsInBatches(db, [wsDoc(db, wsId)]);
+
+  // Now delete all remaining subcollection and related documents
   const refsToDelete: DocumentReference[] = [];
 
-  // Get all members to remove their workspace refs
-  const membersSnap = await getDocs(wsMembersCol(db, wsId));
+  // Member workspace refs + member docs
   membersSnap.docs.forEach((d) => {
     refsToDelete.push(userWsDoc(db, d.data().uid, wsId));
     refsToDelete.push(d.ref);
   });
 
-  // Delete workspace tasks
-  const tasksSnap = await getDocs(wsTasksCol(db, wsId));
   tasksSnap.docs.forEach((d) => refsToDelete.push(d.ref));
-
-  // Delete workspace folders
-  const foldersSnap = await getDocs(wsFoldersCol(db, wsId));
   foldersSnap.docs.forEach((d) => refsToDelete.push(d.ref));
-
-  // Delete activity
-  const activitySnap = await getDocs(wsActivityCol(db, wsId));
   activitySnap.docs.forEach((d) => refsToDelete.push(d.ref));
-
-  // Delete chat messages
-  const messagesSnap = await getDocs(wsMessagesCol(db, wsId));
   messagesSnap.docs.forEach((d) => refsToDelete.push(d.ref));
 
-  // Delete DM messages and DM channel docs
-  const dmsSnap = await getDocs(wsDmsCol(db, wsId));
+  // DM messages and channel docs
   for (const channelDoc of dmsSnap.docs) {
     const dmMessagesSnap = await getDocs(collection(channelDoc.ref, "messages"));
     dmMessagesSnap.docs.forEach((d) => refsToDelete.push(d.ref));
     refsToDelete.push(channelDoc.ref);
   }
 
-  // Delete pending and historical invitations for the workspace
-  const invitationsSnap = await getDocs(
-    query(invitationsCol(db), where("workspaceId", "==", wsId)),
-  );
   invitationsSnap.docs.forEach((d) => refsToDelete.push(d.ref));
-
-  // Delete workspace doc last
-  refsToDelete.push(wsDoc(db, wsId));
 
   await deleteRefsInBatches(db, refsToDelete);
 }

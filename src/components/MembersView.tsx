@@ -147,6 +147,9 @@ export default function MembersView() {
       await deleteWorkspaceAction(wsId);
       setShowDeleteConfirm(false);
       setDeleteWorkspaceName("");
+    } catch (err) {
+      console.error("Failed to delete workspace:", err);
+      alert("Failed to delete workspace. Please try again.");
     } finally {
       setDeletingWorkspace(false);
     }
