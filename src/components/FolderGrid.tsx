@@ -459,7 +459,7 @@ export default function FolderGrid() {
                             <Pencil size={12} /> Rename
                           </button>
                           <div
-                            className="flex items-center gap-1.5 px-4 py-2 overflow-x-auto"
+                            className="flex items-center gap-1.5 px-4 py-2 flex-wrap"
                             style={{
                               borderTop: "1px solid var(--color-border)",
                             }}
@@ -713,7 +713,7 @@ export default function FolderGrid() {
                           Rename
                         </button>
                         <div
-                          className="flex items-center gap-1.5 px-4 py-2 overflow-x-auto"
+                          className="flex items-center gap-1.5 px-4 py-2 flex-wrap"
                           style={{ borderTop: "1px solid var(--color-border)" }}
                         >
                           {PALETTE.map((c) => (
