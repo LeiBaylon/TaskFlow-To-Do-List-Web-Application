@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useRef } from "react";
 import {
   motion,
   AnimatePresence,
@@ -8,6 +8,7 @@ import {
   useTransform,
   PanInfo,
 } from "framer-motion";
+import { createPortal } from "react-dom";
 import {
   Check,
   Flag,
@@ -66,6 +67,11 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
   const [editTitle, setEditTitle] = useState(task.title);
   const [showActions, setShowActions] = useState(false);
   const [showAssignPopover, setShowAssignPopover] = useState(false);
+  const [assignPopoverPos, setAssignPopoverPos] = useState({
+    top: 0,
+    right: 0,
+  });
+  const assignBtnRef = useRef<HTMLButtonElement>(null);
   const { menu, handleContextMenu, closeMenu } = useContextMenu();
 
   const members = state.workspaceMembers;
@@ -153,6 +159,17 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
       .slice(0, 2)
       .map((w) => w[0]?.toUpperCase() || "")
       .join("");
+
+  const openAssignPopover = useCallback(() => {
+    if (assignBtnRef.current) {
+      const rect = assignBtnRef.current.getBoundingClientRect();
+      setAssignPopoverPos({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+      });
+    }
+    setShowAssignPopover(true);
+  }, []);
 
   const startFocus = () => {
     dispatch({ type: "SET_FOCUS_TASK", payload: task.id });
@@ -615,7 +632,8 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
               >
                 {canAssign && (
                   <button
-                    onClick={() => setShowAssignPopover(true)}
+                    ref={assignBtnRef}
+                    onClick={openAssignPopover}
                     className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                     title="Assign members"
                   >
@@ -668,12 +686,12 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
         )}
       </AnimatePresence>
 
-      {/* Quick-assign popover */}
-      <AnimatePresence>
-        {showAssignPopover && (
+      {/* Quick-assign popover — portalled to body */}
+      {showAssignPopover &&
+        createPortal(
           <>
             <motion.div
-              className="fixed inset-0 z-50"
+              className="fixed inset-0 z-[9998]"
               onClick={() => setShowAssignPopover(false)}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -683,8 +701,10 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="absolute right-0 top-full mt-1 z-50 w-56 rounded-xl shadow-lg py-1"
+              className="fixed z-[9999] w-56 rounded-xl shadow-lg py-1"
               style={{
+                top: assignPopoverPos.top,
+                right: assignPopoverPos.right,
                 background: "var(--color-surface)",
                 border: "1px solid var(--color-border)",
               }}
@@ -758,9 +778,9 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
                 </button>
               </div>
             </motion.div>
-          </>
+          </>,
+          document.body,
         )}
-      </AnimatePresence>
     </div>
   );
 }

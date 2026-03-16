@@ -432,7 +432,7 @@ export default function Home() {
 
           {/* Content area */}
           <div className="flex-1 flex min-h-0 overflow-hidden">
-            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-4 md:p-6">
+            <div className={`flex-1 min-h-0 overflow-x-hidden p-3 sm:p-4 md:p-6 ${state.viewMode === "kanban" || state.viewMode === "list" ? "overflow-hidden flex flex-col" : "overflow-y-auto"}`}>
               {state.viewMode === "dashboard" && <DashboardView />}
               {state.viewMode === "folders" && <FolderGrid />}
               {state.viewMode === "settings" && <SettingsView />}
@@ -441,7 +441,7 @@ export default function Home() {
               {(state.viewMode === "list" ||
                 state.viewMode === "kanban" ||
                 state.viewMode === "calendar") && (
-                <div className="flex flex-col h-full">
+                <div className="flex flex-col h-full min-h-0">
                   {/* Floating view switcher nav */}
                   <div className="mb-5 mx-auto w-full max-w-140">
                     <div
@@ -512,16 +512,20 @@ export default function Home() {
 
                   {/* Task views */}
                   {state.viewMode === "list" && (
-                    <TaskList
-                      selectMode={listSelectMode}
-                      onToggleSelectMode={() => setListSelectMode((m) => !m)}
-                    />
+                    <div className="flex-1 min-h-0">
+                      <TaskList
+                        selectMode={listSelectMode}
+                        onToggleSelectMode={() => setListSelectMode((m) => !m)}
+                      />
+                    </div>
                   )}
                   {state.viewMode === "kanban" && (
-                    <KanbanBoard
-                      selectMode={kanbanSelectMode}
-                      onToggleSelectMode={() => setKanbanSelectMode(false)}
-                    />
+                    <div className="flex-1 min-h-0">
+                      <KanbanBoard
+                        selectMode={kanbanSelectMode}
+                        onToggleSelectMode={() => setKanbanSelectMode(false)}
+                      />
+                    </div>
                   )}
                   {state.viewMode === "calendar" && <CalendarView />}
                 </div>

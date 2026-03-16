@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useCallback,
+  useEffect,
+} from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FolderOpen,
@@ -48,12 +55,17 @@ export default function FolderGrid() {
   } | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const newInputRef = useRef<HTMLInputElement>(null);
+  const menuTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const members = state.workspaceMembers;
   const currentMember = members.find((m) => m.uid === state.user?.uid);
   const canManage =
     !!state.activeWorkspaceId &&
     (currentMember?.role === "owner" || currentMember?.role === "admin");
+  const isOwner = !state.activeWorkspaceId || currentMember?.role === "owner";
 
   const taskCounts = useMemo(() => {
     const counts: Record<
@@ -89,14 +101,25 @@ export default function FolderGrid() {
     setShowNew(false);
   }
 
-  function toggleAssignee(folderId: string, member: { uid: string; displayName: string; photoURL: string }) {
+  function toggleAssignee(
+    folderId: string,
+    member: { uid: string; displayName: string; photoURL: string },
+  ) {
     const folder = state.folders.find((f) => f.id === folderId);
     if (!folder) return;
     const current: FolderAssignee[] = folder.assignees || [];
     const exists = current.some((a) => a.uid === member.uid);
-    const next = exists
-      ? current.filter((a) => a.uid !== member.uid)
-      : [...current, { uid: member.uid, displayName: member.displayName, photoURL: member.photoURL }];
+    const next =
+      exists ?
+        current.filter((a) => a.uid !== member.uid)
+      : [
+          ...current,
+          {
+            uid: member.uid,
+            displayName: member.displayName,
+            photoURL: member.photoURL,
+          },
+        ];
     updateFolder(folderId, { assignees: next });
   }
 
@@ -107,6 +130,21 @@ export default function FolderGrid() {
       .map((w) => w[0]?.toUpperCase() || "")
       .join("");
   }
+
+  const openMenu = useCallback(
+    (folderId: string) => {
+      const btn = menuTriggerRefs.current[folderId];
+      if (btn) {
+        const rect = btn.getBoundingClientRect();
+        setMenuPos({
+          top: rect.bottom + 4,
+          right: window.innerWidth - rect.right,
+        });
+      }
+      setMenuId(menuId === folderId ? null : folderId);
+    },
+    [menuId],
+  );
 
   const container = {
     hidden: { opacity: 0 },
@@ -409,9 +447,12 @@ export default function FolderGrid() {
                     )}
 
                     <button
+                      ref={(el) => {
+                        menuTriggerRefs.current[folder.id] = el;
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setMenuId(menuId === folder.id ? null : folder.id);
+                        openMenu(folder.id);
                       }}
                       className="p-1 rounded-lg transition-opacity shrink-0"
                       style={{ color: "var(--color-text-tertiary)" }}
@@ -420,119 +461,129 @@ export default function FolderGrid() {
                     </button>
                   </div>
 
-                  {/* Dropdown */}
-                  <AnimatePresence>
-                    {menuId === folder.id && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-10"
-                          onClick={() => setMenuId(null)}
-                        />
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.92, y: -4 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.92, y: -4 }}
-                          transition={{ duration: 0.12 }}
-                          className="absolute top-10 right-2 z-20 w-40 rounded-xl overflow-hidden shadow-xl"
-                          style={{
-                            background: "var(--color-surface)",
-                            border: "1px solid var(--color-border)",
-                          }}
-                        >
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setRenamingId(folder.id);
-                              setRenameVal(folder.name);
-                              setMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                            style={{ color: "var(--color-text-secondary)" }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background =
-                                "var(--color-accent-light)")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "transparent")
-                            }
-                          >
-                            <Pencil size={12} /> Rename
-                          </button>
+                  {/* Dropdown — portalled to body */}
+                  {mounted && createPortal(
+                    <AnimatePresence>
+                      {menuId === folder.id && (
+                        <>
                           <div
-                            className="flex items-center gap-1.5 px-4 py-2 flex-wrap"
+                            className="fixed inset-0 z-[9998]"
+                            onClick={() => setMenuId(null)}
+                          />
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.92, y: -4 }}
+                            transition={{ duration: 0.12 }}
+                            className="fixed z-[9999] w-40 rounded-xl overflow-hidden shadow-xl"
                             style={{
-                              borderTop: "1px solid var(--color-border)",
+                              top: menuPos.top,
+                              right: menuPos.right,
+                              background: "var(--color-surface)",
+                              border: "1px solid var(--color-border)",
                             }}
                           >
-                            {PALETTE.map((c) => (
+                            {isOwner && (
                               <button
-                                key={c}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  updateFolder(folder.id, { color: c });
+                                  setRenamingId(folder.id);
+                                  setRenameVal(folder.name);
                                   setMenuId(null);
                                 }}
-                                className="w-4 h-4 rounded-full shrink-0 transition-transform hover:scale-110"
-                                style={{
-                                  background: c,
-                                  outline:
-                                    folder.color === c ?
-                                      `2px solid ${c}`
-                                    : "none",
-                                  outlineOffset: 2,
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
+                                style={{ color: "var(--color-text-secondary)" }}
+                                onMouseEnter={(e) =>
+                                  (e.currentTarget.style.background =
+                                    "var(--color-accent-light)")
+                                }
+                                onMouseLeave={(e) =>
+                                  (e.currentTarget.style.background =
+                                    "transparent")
+                                }
+                              >
+                                <Pencil size={12} /> Rename
+                              </button>
+                            )}
+                            <div
+                              className="flex items-center gap-1.5 px-4 py-2 flex-wrap"
+                              style={{
+                                borderTop: "1px solid var(--color-border)",
+                              }}
+                            >
+                              {PALETTE.map((c) => (
+                                <button
+                                  key={c}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    updateFolder(folder.id, { color: c });
+                                    setMenuId(null);
+                                  }}
+                                  className="w-4 h-4 rounded-full shrink-0 transition-transform hover:scale-110"
+                                  style={{
+                                    background: c,
+                                    outline:
+                                      folder.color === c ?
+                                        `2px solid ${c}`
+                                      : "none",
+                                    outlineOffset: 2,
+                                  }}
+                                />
+                              ))}
+                            </div>
+                            {canManage && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAssigningId(folder.id);
+                                  setMenuId(null);
                                 }}
-                              />
-                            ))}
-                          </div>
-                          {canManage && (
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
+                                style={{
+                                  color: "var(--color-text-secondary)",
+                                  borderTop: "1px solid var(--color-border)",
+                                }}
+                                onMouseEnter={(e) =>
+                                  (e.currentTarget.style.background =
+                                    "var(--color-accent-light)")
+                                }
+                                onMouseLeave={(e) =>
+                                  (e.currentTarget.style.background =
+                                    "transparent")
+                                }
+                              >
+                                <Users size={12} /> Assign
+                              </button>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setAssigningId(folder.id);
+                                setDeleteCandidate({
+                                  id: folder.id,
+                                  name: folder.name,
+                                  total: taskCounts[folder.id]?.total ?? 0,
+                                });
                                 setMenuId(null);
                               }}
                               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                              style={{
-                                color: "var(--color-text-secondary)",
-                                borderTop: "1px solid var(--color-border)",
-                              }}
+                              style={{ color: "var(--color-danger)" }}
                               onMouseEnter={(e) =>
                                 (e.currentTarget.style.background =
-                                  "var(--color-accent-light)")
+                                  "rgba(239,68,68,0.08)")
                               }
                               onMouseLeave={(e) =>
-                                (e.currentTarget.style.background = "transparent")
+                                (e.currentTarget.style.background =
+                                  "transparent")
                               }
                             >
-                              <Users size={12} /> Assign
+                              <Trash2 size={12} /> Delete
                             </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteCandidate({
-                                id: folder.id,
-                                name: folder.name,
-                                total: taskCounts[folder.id]?.total ?? 0,
-                              });
-                              setMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                            style={{ color: "var(--color-danger)" }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background =
-                                "rgba(239,68,68,0.08)")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "transparent")
-                            }
-                          >
-                            <Trash2 size={12} /> Delete
-                          </button>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>,
+                    document.body,
+                  )}
                 </motion.div>
               );
             }
@@ -567,9 +618,12 @@ export default function FolderGrid() {
                       <FolderOpen size={20} style={{ color }} />
                     </div>
                     <button
+                      ref={(el) => {
+                        menuTriggerRefs.current[folder.id] = el;
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setMenuId(menuId === folder.id ? null : folder.id);
+                        openMenu(folder.id);
                       }}
                       className="p-1 rounded-lg transition-opacity"
                       style={{ color: "var(--color-text-tertiary)" }}
@@ -673,119 +727,130 @@ export default function FolderGrid() {
                   )}
                 </div>
 
-                {/* Dropdown menu */}
-                <AnimatePresence>
-                  {menuId === folder.id && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-10"
-                        onClick={() => setMenuId(null)}
-                      />
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.92, y: -4 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.92, y: -4 }}
-                        transition={{ duration: 0.12 }}
-                        className="absolute top-12 right-2 z-20 w-40 rounded-xl overflow-hidden shadow-xl"
-                        style={{
-                          background: "var(--color-surface)",
-                          border: "1px solid var(--color-border)",
-                        }}
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRenamingId(folder.id);
-                            setRenameVal(folder.name);
-                            setMenuId(null);
-                          }}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                          style={{ color: "var(--color-text-secondary)" }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background =
-                              "var(--color-accent-light)")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "transparent")
-                          }
-                        >
-                          <Pencil size={12} />
-                          Rename
-                        </button>
+                {/* Dropdown menu — portalled to body */}
+                {mounted && createPortal(
+                  <AnimatePresence>
+                    {menuId === folder.id && (
+                      <>
                         <div
-                          className="flex items-center gap-1.5 px-4 py-2 flex-wrap"
-                          style={{ borderTop: "1px solid var(--color-border)" }}
+                          className="fixed inset-0 z-[9998]"
+                          onClick={() => setMenuId(null)}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.92, y: -4 }}
+                          transition={{ duration: 0.12 }}
+                          className="fixed z-[9999] w-40 rounded-xl overflow-hidden shadow-xl"
+                          style={{
+                            top: menuPos.top,
+                            right: menuPos.right,
+                            background: "var(--color-surface)",
+                            border: "1px solid var(--color-border)",
+                          }}
                         >
-                          {PALETTE.map((c) => (
+                          {isOwner && (
                             <button
-                              key={c}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                updateFolder(folder.id, { color: c });
+                                setRenamingId(folder.id);
+                                setRenameVal(folder.name);
                                 setMenuId(null);
                               }}
-                              className="w-4 h-4 rounded-full shrink-0 transition-transform hover:scale-110"
-                              style={{
-                                background: c,
-                                outline:
-                                  folder.color === c ?
-                                    `2px solid ${c}`
-                                  : "none",
-                                outlineOffset: 2,
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
+                              style={{ color: "var(--color-text-secondary)" }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.background =
+                                  "var(--color-accent-light)")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.background =
+                                  "transparent")
+                              }
+                            >
+                              <Pencil size={12} />
+                              Rename
+                            </button>
+                          )}
+                          <div
+                            className="flex items-center gap-1.5 px-4 py-2 flex-wrap"
+                            style={{
+                              borderTop: "1px solid var(--color-border)",
+                            }}
+                          >
+                            {PALETTE.map((c) => (
+                              <button
+                                key={c}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updateFolder(folder.id, { color: c });
+                                  setMenuId(null);
+                                }}
+                                className="w-4 h-4 rounded-full shrink-0 transition-transform hover:scale-110"
+                                style={{
+                                  background: c,
+                                  outline:
+                                    folder.color === c ?
+                                      `2px solid ${c}`
+                                    : "none",
+                                  outlineOffset: 2,
+                                }}
+                              />
+                            ))}
+                          </div>
+                          {canManage && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAssigningId(folder.id);
+                                setMenuId(null);
                               }}
-                            />
-                          ))}
-                        </div>
-                        {canManage && (
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
+                              style={{
+                                color: "var(--color-text-secondary)",
+                                borderTop: "1px solid var(--color-border)",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.background =
+                                  "var(--color-accent-light)")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.background =
+                                  "transparent")
+                              }
+                            >
+                              <Users size={12} /> Assign
+                            </button>
+                          )}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setAssigningId(folder.id);
+                              setDeleteCandidate({
+                                id: folder.id,
+                                name: folder.name,
+                                total: taskCounts[folder.id]?.total ?? 0,
+                              });
                               setMenuId(null);
                             }}
                             className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                            style={{
-                              color: "var(--color-text-secondary)",
-                              borderTop: "1px solid var(--color-border)",
-                            }}
+                            style={{ color: "var(--color-danger)" }}
                             onMouseEnter={(e) =>
                               (e.currentTarget.style.background =
-                                "var(--color-accent-light)")
+                                "rgba(239,68,68,0.08)")
                             }
                             onMouseLeave={(e) =>
                               (e.currentTarget.style.background = "transparent")
                             }
                           >
-                            <Users size={12} /> Assign
+                            <Trash2 size={12} />
+                            Delete
                           </button>
-                        )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteCandidate({
-                              id: folder.id,
-                              name: folder.name,
-                              total: taskCounts[folder.id]?.total ?? 0,
-                            });
-                            setMenuId(null);
-                          }}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                          style={{ color: "var(--color-danger)" }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background =
-                              "rgba(239,68,68,0.08)")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "transparent")
-                          }
-                        >
-                          <Trash2 size={12} />
-                          Delete
-                        </button>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>,
+                  document.body,
+                )}
               </motion.div>
             );
           })}
@@ -861,8 +926,11 @@ export default function FolderGrid() {
               </div>
               <div className="max-h-64 overflow-y-auto">
                 {members.map((m) => {
-                  const folder = state.folders.find((f) => f.id === assigningId);
-                  const isAssigned = folder?.assignees?.some((a) => a.uid === m.uid) ?? false;
+                  const folder = state.folders.find(
+                    (f) => f.id === assigningId,
+                  );
+                  const isAssigned =
+                    folder?.assignees?.some((a) => a.uid === m.uid) ?? false;
                   return (
                     <button
                       key={m.uid}
@@ -875,15 +943,19 @@ export default function FolderGrid() {
                       }
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors"
                       style={{
-                        background: isAssigned ? "var(--color-accent-light)" : "transparent",
+                        background:
+                          isAssigned ?
+                            "var(--color-accent-light)"
+                          : "transparent",
                       }}
                       onMouseEnter={(e) => {
                         if (!isAssigned)
                           e.currentTarget.style.background = "var(--color-bg)";
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = isAssigned
-                          ? "var(--color-accent-light)"
+                        e.currentTarget.style.background =
+                          isAssigned ?
+                            "var(--color-accent-light)"
                           : "transparent";
                       }}
                     >
@@ -922,8 +994,14 @@ export default function FolderGrid() {
                       <div
                         className="w-5 h-5 rounded-md flex items-center justify-center shrink-0"
                         style={{
-                          background: isAssigned ? "var(--color-accent)" : "var(--color-bg)",
-                          border: isAssigned ? "none" : "1.5px solid var(--color-border)",
+                          background:
+                            isAssigned ?
+                              "var(--color-accent)"
+                            : "var(--color-bg)",
+                          border:
+                            isAssigned ? "none" : (
+                              "1.5px solid var(--color-border)"
+                            ),
                         }}
                       >
                         {isAssigned && <Check size={12} color="white" />}

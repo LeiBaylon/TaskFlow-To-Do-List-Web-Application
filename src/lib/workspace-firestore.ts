@@ -310,29 +310,6 @@ export function subscribeWsFolders(
   );
 }
 
-export function subscribeWsActivity(
-  db: Firestore,
-  wsId: string,
-  callback: (entries: ActivityEntry[]) => void,
-  maxEntries = 50,
-) {
-  const q = query(
-    wsActivityCol(db, wsId),
-    orderBy("timestamp", "desc"),
-    limit(maxEntries),
-  );
-  return onSnapshot(
-    q,
-    (snap) => {
-      callback(snap.docs.map((d) => d.data() as ActivityEntry));
-    },
-    (err) => {
-      console.warn("subscribeWsActivity:", err.message);
-      callback([]);
-    },
-  );
-}
-
 export function subscribePendingInvitations(
   db: Firestore,
   email: string,

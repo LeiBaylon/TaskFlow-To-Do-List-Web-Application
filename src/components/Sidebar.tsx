@@ -206,50 +206,25 @@ export default function Sidebar({
             >
               <Inbox size={18} />
             </button>
-            {/* Scrollable folder dots — max 7 visible */}
-            <div
-              className="overflow-y-auto flex flex-col items-center gap-1 w-full"
-              style={{ maxHeight: "calc(7 * 44px)" }}
+            <button
+              onClick={() =>
+                dispatch({ type: "SET_VIEW_MODE", payload: "folders" })
+              }
+              className="p-2.5 rounded-lg transition-all"
+              style={{
+                background:
+                  state.viewMode === "folders" ?
+                    "var(--color-accent-light)"
+                  : "transparent",
+                color:
+                  state.viewMode === "folders" ?
+                    "var(--color-accent)"
+                  : "var(--color-text-secondary)",
+              }}
+              title="Folders"
             >
-              {state.folders
-                .filter((f) => f.id !== "inbox")
-                .map((folder) => (
-                  <button
-                    key={folder.id}
-                    onClick={() => {
-                      dispatch({
-                        type: "SET_ACTIVE_FOLDER",
-                        payload: folder.id,
-                      });
-                      if (state.viewMode === "dashboard")
-                        dispatch({ type: "SET_VIEW_MODE", payload: "list" });
-                    }}
-                    className="p-2.5 rounded-lg transition-all"
-                    style={{
-                      background:
-                        (
-                          state.activeFolderId === folder.id &&
-                          state.viewMode !== "dashboard"
-                        ) ?
-                          "var(--color-accent-light)"
-                        : "transparent",
-                      color:
-                        (
-                          state.activeFolderId === folder.id &&
-                          state.viewMode !== "dashboard"
-                        ) ?
-                          "var(--color-accent)"
-                        : "var(--color-text-secondary)",
-                    }}
-                    title={folder.name}
-                  >
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ background: folder.color || "#6366f1" }}
-                    />
-                  </button>
-                ))}
-            </div>
+              <FolderOpen size={18} />
+            </button>
 
             {/* Collapsed chat button */}
             {state.activeWorkspaceId && (

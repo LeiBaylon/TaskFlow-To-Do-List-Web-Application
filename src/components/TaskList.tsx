@@ -221,9 +221,9 @@ export default function TaskList({
     filteredTasks.incomplete.length + filteredTasks.completed.length;
 
   return (
-    <div className="max-w-2xl mx-auto w-full">
+    <div className="max-w-2xl mx-auto w-full h-full flex flex-col min-h-0">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 shrink-0">
         <div>
           <h1
             className="text-2xl font-bold tracking-tight"
@@ -272,7 +272,7 @@ export default function TaskList({
       </div>
 
       {/* Search tasks */}
-      <div className="mb-4 relative">
+      <div className="mb-4 relative shrink-0">
         <Search
           size={15}
           className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -307,7 +307,7 @@ export default function TaskList({
       </div>
 
       {/* Filters + Saved views */}
-      <div className="mb-4 flex items-center gap-2 text-xs">
+      <div className="mb-4 flex items-center gap-2 text-xs shrink-0">
         {/* Select mode toggle (list view only) */}
         <button
           onClick={() => onToggleSelectMode?.()}
@@ -553,6 +553,8 @@ export default function TaskList({
         )}
       </AnimatePresence>
 
+      {/* Scrollable task list area */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
       {/* Task list */}
       <div className="space-y-0.5">
         <AnimatePresence mode="popLayout">
@@ -730,6 +732,7 @@ export default function TaskList({
           </AnimatePresence>
         </div>
       )}
+      </div>
     </div>
   );
 }

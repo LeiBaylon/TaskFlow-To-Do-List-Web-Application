@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -387,6 +388,20 @@ function MemberRow({
 }: MemberRowProps) {
   const canEdit = canManage && member.role !== "owner" && !isSelf;
 
+  const roleBtnRef = useRef<HTMLButtonElement>(null);
+  const [rolePos, setRolePos] = useState({ top: 0, right: 0 });
+
+  const handleToggleRole = useCallback(() => {
+    if (roleBtnRef.current) {
+      const rect = roleBtnRef.current.getBoundingClientRect();
+      setRolePos({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+      });
+    }
+    onToggleRoleDropdown();
+  }, [onToggleRoleDropdown]);
+
   return (
     <div
       className="flex items-center gap-2.5 px-2 py-2 rounded-xl transition-colors"
@@ -458,7 +473,8 @@ function MemberRow({
           </div>
         : <div className="flex items-center gap-1">
             <button
-              onClick={canEdit ? onToggleRoleDropdown : undefined}
+              ref={roleBtnRef}
+              onClick={canEdit ? handleToggleRole : undefined}
               className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-colors"
               style={{
                 color: roleColor(member.role),
@@ -481,49 +497,57 @@ function MemberRow({
               </button>
             )}
 
-            {/* Role dropdown */}
-            <AnimatePresence>
-              {roleDropdownOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  className="absolute right-0 top-full mt-1 z-10 rounded-lg shadow-lg overflow-hidden"
-                  style={{
-                    background: "var(--color-surface)",
-                    border: "1px solid var(--color-border)",
-                  }}
-                >
-                  {ROLE_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => onRoleChange(opt.value)}
-                      className="flex items-center gap-2 w-full px-3 py-1.5 text-[10px] text-left transition-colors"
-                      style={{
-                        color:
-                          member.role === opt.value ?
-                            "var(--color-accent)"
-                          : "var(--color-text)",
-                        background:
-                          member.role === opt.value ?
-                            "var(--color-accent-light)"
-                          : "transparent",
-                      }}
-                      onMouseEnter={(e) =>
-                        member.role !== opt.value &&
-                        (e.currentTarget.style.background = "var(--color-bg)")
-                      }
-                      onMouseLeave={(e) =>
-                        member.role !== opt.value &&
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </motion.div>
+            {/* Role dropdown — portalled to body */}
+            {roleDropdownOpen &&
+              createPortal(
+                <>
+                  <div
+                    className="fixed inset-0 z-[9998]"
+                    onClick={onToggleRoleDropdown}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    className="fixed z-[9999] rounded-lg shadow-lg overflow-hidden"
+                    style={{
+                      top: rolePos.top,
+                      right: rolePos.right,
+                      background: "var(--color-surface)",
+                      border: "1px solid var(--color-border)",
+                    }}
+                  >
+                    {ROLE_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => onRoleChange(opt.value)}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[10px] text-left transition-colors"
+                        style={{
+                          color:
+                            member.role === opt.value ?
+                              "var(--color-accent)"
+                            : "var(--color-text)",
+                          background:
+                            member.role === opt.value ?
+                              "var(--color-accent-light)"
+                            : "transparent",
+                        }}
+                        onMouseEnter={(e) =>
+                          member.role !== opt.value &&
+                          (e.currentTarget.style.background = "var(--color-bg)")
+                        }
+                        onMouseLeave={(e) =>
+                          member.role !== opt.value &&
+                          (e.currentTarget.style.background = "transparent")
+                        }
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </motion.div>
+                </>,
+                document.body,
               )}
-            </AnimatePresence>
           </div>
         }
       </div>

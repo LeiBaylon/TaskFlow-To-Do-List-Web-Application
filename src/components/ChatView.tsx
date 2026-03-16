@@ -138,6 +138,7 @@ export default function ChatView() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [mobileShowChat, setMobileShowChat] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -296,10 +297,10 @@ export default function ChatView() {
   }
 
   return (
-    <div className="flex h-full gap-3 max-w-5xl mx-auto">
+    <div className="flex h-full gap-0 md:gap-3 max-w-5xl mx-auto">
       {/* Conversation list sidebar */}
       <div
-        className="w-56 shrink-0 rounded-xl flex flex-col overflow-hidden"
+        className={`${mobileShowChat ? "hidden" : "flex"} md:flex w-full md:w-56 shrink-0 rounded-xl flex-col overflow-hidden`}
         style={{
           background: "var(--color-surface)",
           border: "1px solid var(--color-border)",
@@ -318,7 +319,7 @@ export default function ChatView() {
         <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
           {/* Group chat */}
           <button
-            onClick={() => closeDm()}
+            onClick={() => { closeDm(); setMobileShowChat(true); }}
             className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm transition-all"
             style={{
               background: !isDm ? "var(--color-accent-light)" : "transparent",
@@ -341,7 +342,7 @@ export default function ChatView() {
               {otherMembers.map((member) => (
                 <button
                   key={member.uid}
-                  onClick={() => openDm(member.uid)}
+                  onClick={() => { openDm(member.uid); setMobileShowChat(true); }}
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-all"
                   style={{
                     background:
@@ -380,7 +381,7 @@ export default function ChatView() {
       </div>
 
       {/* Main chat area */}
-      <div className="flex-1 flex min-w-0 relative overflow-hidden">
+      <div className={`${mobileShowChat ? "flex" : "hidden"} md:flex flex-1 min-w-0 relative overflow-hidden`}>
         <div className="flex-1 flex flex-col min-w-0">
           {/* Chat header + filter bar */}
           <div
@@ -394,8 +395,8 @@ export default function ChatView() {
               {isDm ?
                 <>
                   <button
-                    onClick={() => closeDm()}
-                    className="p-1 rounded-md hover:opacity-70 transition-opacity sm:hidden"
+                    onClick={() => { closeDm(); setMobileShowChat(false); }}
+                    className="p-1 rounded-md hover:opacity-70 transition-opacity md:hidden"
                     style={{ color: "var(--color-text-secondary)" }}
                   >
                     <ArrowLeft size={18} />
@@ -453,6 +454,13 @@ export default function ChatView() {
                   )}
                 </>
               : <>
+                  <button
+                    onClick={() => setMobileShowChat(false)}
+                    className="p-1 rounded-md hover:opacity-70 transition-opacity md:hidden"
+                    style={{ color: "var(--color-text-secondary)" }}
+                  >
+                    <ArrowLeft size={18} />
+                  </button>
                   <Hash size={20} style={{ color: "var(--color-accent)" }} />
                   <h2
                     className="text-base font-semibold"
@@ -562,7 +570,7 @@ export default function ChatView() {
                       }
                     </div>
                     <div
-                      className={`flex flex-col gap-0.5 max-w-[75%] ${isOwn ? "items-end" : "items-start"}`}
+                      className={`flex flex-col gap-0.5 max-w-[85%] md:max-w-[75%] ${isOwn ? "items-end" : "items-start"}`}
                     >
                       <span
                         className="text-xs font-medium mb-0.5 px-1"
@@ -732,21 +740,30 @@ export default function ChatView() {
         {/* Filter sidebar from right */}
         <AnimatePresence>
           {filterOpen && (
-            <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 280, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: "easeInOut" }}
-              className="shrink-0 overflow-hidden ml-3"
-            >
-              <div
-                className="h-full rounded-xl flex flex-col"
-                style={{
-                  background: "var(--color-surface)",
-                  border: "1px solid var(--color-border)",
-                  minWidth: 280,
-                }}
+            <>
+              {/* Mobile overlay backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-40 bg-black/40 md:hidden"
+                onClick={() => setFilterOpen(false)}
+              />
+              <motion.div
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 280, opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeInOut" }}
+                className="fixed right-0 top-0 h-full z-50 overflow-hidden md:relative md:z-auto md:shrink-0 md:ml-3"
               >
+                <div
+                  className="h-full rounded-none md:rounded-xl flex flex-col"
+                  style={{
+                    background: "var(--color-surface)",
+                    border: "1px solid var(--color-border)",
+                    minWidth: 280,
+                  }}
+                >
                 {/* Header */}
                 <div className="flex items-center justify-between px-3 pt-3 pb-2">
                   <span
@@ -924,6 +941,7 @@ export default function ChatView() {
                 </div>
               </div>
             </motion.div>
+            </>
           )}
         </AnimatePresence>
       </div>

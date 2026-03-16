@@ -457,6 +457,7 @@ export default function KanbanBoard({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
+      <div className="flex flex-col h-full min-h-0">
       {/* Select mode toggle + Bulk actions toolbar */}
       <AnimatePresence>
         {selectedCount > 0 && selectMode && (
@@ -525,7 +526,7 @@ export default function KanbanBoard({
         )}
       </AnimatePresence>
 
-      <div className="flex h-full overflow-x-auto pb-4 px-2">
+      <div className="flex flex-1 min-h-0 overflow-x-auto pb-4 px-2">
         {COLUMNS.map((col, index) => (
           <React.Fragment key={col.id}>
             {index > 0 && (
@@ -534,9 +535,9 @@ export default function KanbanBoard({
                 style={{ background: "var(--color-border)" }}
               />
             )}
-            <div className="flex-1 min-w-70 max-w-90">
+            <div className="flex-1 min-w-70 max-w-90 flex flex-col min-h-0">
               {/* Column header */}
-              <div className="flex items-center gap-2 mb-3 px-2">
+              <div className="flex items-center gap-2 mb-3 px-2 shrink-0">
                 <div
                   className="w-2 h-2 rounded-full"
                   style={{ background: col.color }}
@@ -558,40 +559,43 @@ export default function KanbanBoard({
                 </span>
               </div>
 
-              {/* Column body */}
-              <DroppableColumn id={col.id} isOver={false}>
-                <SortableContext
-                  id={col.id}
-                  items={columnTasks[col.id]?.map((t) => t.id) || []}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <AnimatePresence mode="popLayout">
-                    {columnTasks[col.id]?.map((task) => (
-                      <SortableTask
-                        key={task.id}
-                        task={task}
-                        isSelected={selectedIds.has(task.id)}
-                        selectMode={selectMode}
-                        onSelect={handleSelect}
-                      />
-                    ))}
-                  </AnimatePresence>
-                </SortableContext>
-
-                {/* Quick add */}
-                {col.id !== "done" && (
-                  <button
-                    onClick={() => handleQuickAdd(col.id as Task["status"])}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors"
-                    style={{ color: "var(--color-text-tertiary)" }}
+              {/* Column body — independent scroll */}
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <DroppableColumn id={col.id} isOver={false}>
+                  <SortableContext
+                    id={col.id}
+                    items={columnTasks[col.id]?.map((t) => t.id) || []}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <Plus size={14} /> Add task
-                  </button>
-                )}
-              </DroppableColumn>
+                    <AnimatePresence mode="popLayout">
+                      {columnTasks[col.id]?.map((task) => (
+                        <SortableTask
+                          key={task.id}
+                          task={task}
+                          isSelected={selectedIds.has(task.id)}
+                          selectMode={selectMode}
+                          onSelect={handleSelect}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </SortableContext>
+
+                  {/* Quick add */}
+                  {col.id !== "done" && (
+                    <button
+                      onClick={() => handleQuickAdd(col.id as Task["status"])}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors"
+                      style={{ color: "var(--color-text-tertiary)" }}
+                    >
+                      <Plus size={14} /> Add task
+                    </button>
+                  )}
+                </DroppableColumn>
+              </div>
             </div>
           </React.Fragment>
         ))}
+      </div>
       </div>
 
       <DragOverlay>

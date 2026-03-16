@@ -59,6 +59,7 @@ import {
   removeWsFolder,
   createWorkspace as createWsDoc,
   deleteWorkspace as deleteWsDoc,
+  updateWorkspace as updateWsDoc,
   createInvitation,
   acceptInvitation as acceptInvDoc,
   declineInvitation as declineInvDoc,
@@ -380,6 +381,7 @@ interface AppContextType {
     description?: string,
   ) => Promise<string>;
   deleteWorkspaceAction: (wsId: string) => Promise<void>;
+  renameWorkspaceAction: (wsId: string, newName: string) => Promise<void>;
   inviteToWorkspace: (
     wsId: string,
     email: string,
@@ -1057,6 +1059,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [state.activeWorkspaceId, state.user?.uid, state.workspaces],
   );
 
+  const renameWorkspaceActionFn = useCallback(
+    async (wsId: string, newName: string) => {
+      if (!db) return;
+      await updateWsDoc(db, wsId, { name: newName, updatedAt: new Date().toISOString() });
+      dispatch({
+        type: "SHOW_TOAST",
+        payload: { message: `Workspace renamed to "${newName}"`, type: "success" },
+      });
+    },
+    [],
+  );
+
   const inviteToWorkspaceAction = useCallback(
     async (wsId: string, email: string, role: WorkspaceRole) => {
       if (!state.user || !db) return;
@@ -1207,6 +1221,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         switchWorkspace,
         createWorkspaceAction,
         deleteWorkspaceAction: deleteWorkspaceActionFn,
+        renameWorkspaceAction: renameWorkspaceActionFn,
         inviteToWorkspace: inviteToWorkspaceAction,
         acceptInvitationAction,
         declineInvitationAction: declineInvitationActionFn,
