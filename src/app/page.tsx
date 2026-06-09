@@ -207,7 +207,7 @@ export default function Home() {
           e.preventDefault();
           dispatch({ type: "SET_ACTIVE_FOLDER", payload: "inbox" });
           if (state.viewMode === "dashboard")
-            dispatch({ type: "SET_VIEW_MODE", payload: "list" });
+            dispatch({ type: "SET_VIEW_MODE", payload: "folders" });
           return;
         // S — Toggle stats panel
         case "s":
@@ -432,9 +432,15 @@ export default function Home() {
 
           {/* Content area */}
           <div className="flex-1 flex min-h-0 overflow-hidden">
-            <div className={`flex-1 min-h-0 overflow-x-hidden p-3 sm:p-4 md:p-6 ${state.viewMode === "kanban" || state.viewMode === "list" ? "overflow-hidden flex flex-col" : "overflow-y-auto"}`}>
+            <div
+              className={`flex-1 min-h-0 overflow-x-hidden p-3 sm:p-4 md:p-6 ${state.viewMode === "kanban" || state.viewMode === "list" || state.viewMode === "folders" ? "overflow-hidden flex flex-col" : "overflow-y-auto"}`}
+            >
               {state.viewMode === "dashboard" && <DashboardView />}
-              {state.viewMode === "folders" && <FolderGrid />}
+              {state.viewMode === "folders" && (
+                <div className="flex-1 min-h-0 flex flex-col">
+                  <FolderGrid />
+                </div>
+              )}
               {state.viewMode === "settings" && <SettingsView />}
               {state.viewMode === "members" && <MembersView />}
               {state.viewMode === "chat" && <ChatView />}

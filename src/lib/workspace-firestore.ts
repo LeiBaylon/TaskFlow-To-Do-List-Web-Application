@@ -548,6 +548,15 @@ export async function sendWsMessage(
   await setDoc(doc(wsMessagesCol(db, wsId), message.id), message);
 }
 
+export async function updateWsMessage(
+  db: Firestore,
+  wsId: string,
+  msgId: string,
+  fields: Partial<WorkspaceMessage>,
+) {
+  await setDoc(doc(wsMessagesCol(db, wsId), msgId), fields, { merge: true });
+}
+
 // ─── Direct Messages ───────────────────
 
 export function getDmChannelId(uid1: string, uid2: string): string {
@@ -610,4 +619,14 @@ export async function sendDmMessage(
   message: DirectMessage,
 ) {
   await setDoc(doc(wsDmMessagesCol(db, wsId, channelId), message.id), message);
+}
+
+export async function updateDmMessage(
+  db: Firestore,
+  wsId: string,
+  channelId: string,
+  msgId: string,
+  fields: Partial<DirectMessage>,
+) {
+  await setDoc(doc(wsDmMessagesCol(db, wsId, channelId), msgId), fields, { merge: true });
 }

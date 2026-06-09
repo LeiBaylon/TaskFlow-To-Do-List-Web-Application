@@ -80,14 +80,6 @@ export async function setUserProfile(
   );
 }
 
-export async function getUserProfile(
-  db: Firestore,
-  uid: string,
-): Promise<UserProfileData | null> {
-  const snap = await getDoc(profileDoc(db, uid));
-  return snap.exists() ? (snap.data() as UserProfileData) : null;
-}
-
 // ─── Preferences ──────────────────────────
 
 export async function setUserPreferences(
@@ -96,14 +88,6 @@ export async function setUserPreferences(
   prefs: Partial<UserPreferences>,
 ) {
   await setDoc(prefsDoc(db, uid), prefs, { merge: true });
-}
-
-export async function getUserPreferences(
-  db: Firestore,
-  uid: string,
-): Promise<UserPreferences | null> {
-  const snap = await getDoc(prefsDoc(db, uid));
-  return snap.exists() ? (snap.data() as UserPreferences) : null;
 }
 
 export function subscribePreferences(
@@ -124,14 +108,6 @@ export function subscribePreferences(
 }
 
 // ─── Stats ────────────────────────────────
-
-export async function getUserStats(
-  db: Firestore,
-  uid: string,
-): Promise<UserStats | null> {
-  const snap = await getDoc(statsDoc(db, uid));
-  return snap.exists() ? (snap.data() as UserStats) : null;
-}
 
 export async function incrementCompletionCount(
   db: Firestore,

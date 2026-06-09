@@ -177,11 +177,7 @@ export default function Sidebar({
             <button
               onClick={() => {
                 dispatch({ type: "SET_ACTIVE_FOLDER", payload: "inbox" });
-                if (
-                  state.viewMode === "dashboard" ||
-                  state.viewMode === "folders"
-                )
-                  dispatch({ type: "SET_VIEW_MODE", payload: "list" });
+                dispatch({ type: "SET_VIEW_MODE", payload: "list" });
               }}
               className="p-2.5 rounded-lg transition-all"
               style={{
@@ -336,11 +332,7 @@ export default function Sidebar({
               <button
                 onClick={() => {
                   dispatch({ type: "SET_ACTIVE_FOLDER", payload: "inbox" });
-                  if (
-                    state.viewMode === "dashboard" ||
-                    state.viewMode === "folders"
-                  )
-                    dispatch({ type: "SET_VIEW_MODE", payload: "list" });
+                  dispatch({ type: "SET_VIEW_MODE", payload: "list" });
                 }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150"
                 style={{

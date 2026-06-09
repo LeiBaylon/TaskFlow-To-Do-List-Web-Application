@@ -157,6 +157,10 @@ export interface WorkspaceMessage {
   userPhotoURL: string;
   createdAt: string;
   attachment?: ChatAttachment;
+  attachments?: ChatAttachment[];
+  editedAt?: string;
+  deletedFor?: string[];
+  deletedForEveryone?: boolean;
 }
 
 export interface DirectMessage {
@@ -167,4 +171,8 @@ export interface DirectMessage {
   senderPhotoURL: string;
   createdAt: string;
   attachment?: ChatAttachment;
+  attachments?: ChatAttachment[];
+  editedAt?: string;
+  deletedFor?: string[];
+  deletedForEveryone?: boolean;
 }

@@ -110,7 +110,7 @@ export default function SettingsView() {
 
   return (
     <>
-      <div className="max-w-2xl mx-auto w-full">
+      <div className="w-full">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

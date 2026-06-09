@@ -58,7 +58,9 @@ export default function FolderGrid() {
   const menuTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const members = state.workspaceMembers;
   const currentMember = members.find((m) => m.uid === state.user?.uid);
@@ -156,9 +158,9 @@ export default function FolderGrid() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="flex flex-col h-full min-h-0">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 shrink-0">
         <div>
           <h1
             className="text-2xl font-bold"
@@ -230,6 +232,8 @@ export default function FolderGrid() {
         </div>
       </div>
 
+      {/* Scrollable folder area */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
       {/* New folder form */}
       <AnimatePresence>
         {showNew && (
@@ -307,7 +311,7 @@ export default function FolderGrid() {
         animate="show"
         className={
           layout === "grid" ?
-            "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
+            "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4"
           : "flex flex-col gap-2"
         }
       >
@@ -422,7 +426,7 @@ export default function FolderGrid() {
                               alt={a.displayName}
                               width={18}
                               height={18}
-                              className="rounded-full ring-1 ring-(--color-surface)"
+                              className="w-4.5 h-4.5 rounded-full ring-1 ring-(--color-surface) object-cover"
                             />
                           : <span
                               key={a.uid}
@@ -462,128 +466,131 @@ export default function FolderGrid() {
                   </div>
 
                   {/* Dropdown — portalled to body */}
-                  {mounted && createPortal(
-                    <AnimatePresence>
-                      {menuId === folder.id && (
-                        <>
-                          <div
-                            className="fixed inset-0 z-[9998]"
-                            onClick={() => setMenuId(null)}
-                          />
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.92, y: -4 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.92, y: -4 }}
-                            transition={{ duration: 0.12 }}
-                            className="fixed z-[9999] w-40 rounded-xl overflow-hidden shadow-xl"
-                            style={{
-                              top: menuPos.top,
-                              right: menuPos.right,
-                              background: "var(--color-surface)",
-                              border: "1px solid var(--color-border)",
-                            }}
-                          >
-                            {isOwner && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setRenamingId(folder.id);
-                                  setRenameVal(folder.name);
-                                  setMenuId(null);
-                                }}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                                style={{ color: "var(--color-text-secondary)" }}
-                                onMouseEnter={(e) =>
-                                  (e.currentTarget.style.background =
-                                    "var(--color-accent-light)")
-                                }
-                                onMouseLeave={(e) =>
-                                  (e.currentTarget.style.background =
-                                    "transparent")
-                                }
-                              >
-                                <Pencil size={12} /> Rename
-                              </button>
-                            )}
+                  {mounted &&
+                    createPortal(
+                      <AnimatePresence>
+                        {menuId === folder.id && (
+                          <>
                             <div
-                              className="flex items-center gap-1.5 px-4 py-2 flex-wrap"
+                              className="fixed inset-0 z-9998"
+                              onClick={() => setMenuId(null)}
+                            />
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.92, y: -4 }}
+                              transition={{ duration: 0.12 }}
+                              className="fixed z-9999 w-40 rounded-xl overflow-hidden shadow-xl"
                               style={{
-                                borderTop: "1px solid var(--color-border)",
+                                top: menuPos.top,
+                                right: menuPos.right,
+                                background: "var(--color-surface)",
+                                border: "1px solid var(--color-border)",
                               }}
                             >
-                              {PALETTE.map((c) => (
+                              {isOwner && (
                                 <button
-                                  key={c}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    updateFolder(folder.id, { color: c });
+                                    setRenamingId(folder.id);
+                                    setRenameVal(folder.name);
                                     setMenuId(null);
                                   }}
-                                  className="w-4 h-4 rounded-full shrink-0 transition-transform hover:scale-110"
+                                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
                                   style={{
-                                    background: c,
-                                    outline:
-                                      folder.color === c ?
-                                        `2px solid ${c}`
-                                      : "none",
-                                    outlineOffset: 2,
+                                    color: "var(--color-text-secondary)",
                                   }}
-                                />
-                              ))}
-                            </div>
-                            {canManage && (
+                                  onMouseEnter={(e) =>
+                                    (e.currentTarget.style.background =
+                                      "var(--color-accent-light)")
+                                  }
+                                  onMouseLeave={(e) =>
+                                    (e.currentTarget.style.background =
+                                      "transparent")
+                                  }
+                                >
+                                  <Pencil size={12} /> Rename
+                                </button>
+                              )}
+                              <div
+                                className="flex items-center gap-1.5 px-4 py-2 flex-wrap"
+                                style={{
+                                  borderTop: "1px solid var(--color-border)",
+                                }}
+                              >
+                                {PALETTE.map((c) => (
+                                  <button
+                                    key={c}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      updateFolder(folder.id, { color: c });
+                                      setMenuId(null);
+                                    }}
+                                    className="w-4 h-4 rounded-full shrink-0 transition-transform hover:scale-110"
+                                    style={{
+                                      background: c,
+                                      outline:
+                                        folder.color === c ?
+                                          `2px solid ${c}`
+                                        : "none",
+                                      outlineOffset: 2,
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                              {canManage && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAssigningId(folder.id);
+                                    setMenuId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
+                                  style={{
+                                    color: "var(--color-text-secondary)",
+                                    borderTop: "1px solid var(--color-border)",
+                                  }}
+                                  onMouseEnter={(e) =>
+                                    (e.currentTarget.style.background =
+                                      "var(--color-accent-light)")
+                                  }
+                                  onMouseLeave={(e) =>
+                                    (e.currentTarget.style.background =
+                                      "transparent")
+                                  }
+                                >
+                                  <Users size={12} /> Assign
+                                </button>
+                              )}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setAssigningId(folder.id);
+                                  setDeleteCandidate({
+                                    id: folder.id,
+                                    name: folder.name,
+                                    total: taskCounts[folder.id]?.total ?? 0,
+                                  });
                                   setMenuId(null);
                                 }}
                                 className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                                style={{
-                                  color: "var(--color-text-secondary)",
-                                  borderTop: "1px solid var(--color-border)",
-                                }}
+                                style={{ color: "var(--color-danger)" }}
                                 onMouseEnter={(e) =>
                                   (e.currentTarget.style.background =
-                                    "var(--color-accent-light)")
+                                    "rgba(239,68,68,0.08)")
                                 }
                                 onMouseLeave={(e) =>
                                   (e.currentTarget.style.background =
                                     "transparent")
                                 }
                               >
-                                <Users size={12} /> Assign
+                                <Trash2 size={12} /> Delete
                               </button>
-                            )}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteCandidate({
-                                  id: folder.id,
-                                  name: folder.name,
-                                  total: taskCounts[folder.id]?.total ?? 0,
-                                });
-                                setMenuId(null);
-                              }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                              style={{ color: "var(--color-danger)" }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.background =
-                                  "rgba(239,68,68,0.08)")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.background =
-                                  "transparent")
-                              }
-                            >
-                              <Trash2 size={12} /> Delete
-                            </button>
-                          </motion.div>
-                        </>
-                      )}
-                    </AnimatePresence>,
-                    document.body,
-                  )}
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>,
+                      document.body,
+                    )}
                 </motion.div>
               );
             }
@@ -701,7 +708,7 @@ export default function FolderGrid() {
                               alt={a.displayName}
                               width={20}
                               height={20}
-                              className="rounded-full ring-1 ring-(--color-surface)"
+                              className="w-5 h-5 rounded-full ring-1 ring-(--color-surface) object-cover"
                             />
                           : <span
                               key={a.uid}
@@ -728,129 +735,131 @@ export default function FolderGrid() {
                 </div>
 
                 {/* Dropdown menu — portalled to body */}
-                {mounted && createPortal(
-                  <AnimatePresence>
-                    {menuId === folder.id && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-[9998]"
-                          onClick={() => setMenuId(null)}
-                        />
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.92, y: -4 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.92, y: -4 }}
-                          transition={{ duration: 0.12 }}
-                          className="fixed z-[9999] w-40 rounded-xl overflow-hidden shadow-xl"
-                          style={{
-                            top: menuPos.top,
-                            right: menuPos.right,
-                            background: "var(--color-surface)",
-                            border: "1px solid var(--color-border)",
-                          }}
-                        >
-                          {isOwner && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRenamingId(folder.id);
-                                setRenameVal(folder.name);
-                                setMenuId(null);
-                              }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                              style={{ color: "var(--color-text-secondary)" }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.background =
-                                  "var(--color-accent-light)")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.background =
-                                  "transparent")
-                              }
-                            >
-                              <Pencil size={12} />
-                              Rename
-                            </button>
-                          )}
+                {mounted &&
+                  createPortal(
+                    <AnimatePresence>
+                      {menuId === folder.id && (
+                        <>
                           <div
-                            className="flex items-center gap-1.5 px-4 py-2 flex-wrap"
+                            className="fixed inset-0 z-9998"
+                            onClick={() => setMenuId(null)}
+                          />
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.92, y: -4 }}
+                            transition={{ duration: 0.12 }}
+                            className="fixed z-9999 w-40 rounded-xl overflow-hidden shadow-xl"
                             style={{
-                              borderTop: "1px solid var(--color-border)",
+                              top: menuPos.top,
+                              right: menuPos.right,
+                              background: "var(--color-surface)",
+                              border: "1px solid var(--color-border)",
                             }}
                           >
-                            {PALETTE.map((c) => (
+                            {isOwner && (
                               <button
-                                key={c}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  updateFolder(folder.id, { color: c });
+                                  setRenamingId(folder.id);
+                                  setRenameVal(folder.name);
                                   setMenuId(null);
                                 }}
-                                className="w-4 h-4 rounded-full shrink-0 transition-transform hover:scale-110"
-                                style={{
-                                  background: c,
-                                  outline:
-                                    folder.color === c ?
-                                      `2px solid ${c}`
-                                    : "none",
-                                  outlineOffset: 2,
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
+                                style={{ color: "var(--color-text-secondary)" }}
+                                onMouseEnter={(e) =>
+                                  (e.currentTarget.style.background =
+                                    "var(--color-accent-light)")
+                                }
+                                onMouseLeave={(e) =>
+                                  (e.currentTarget.style.background =
+                                    "transparent")
+                                }
+                              >
+                                <Pencil size={12} />
+                                Rename
+                              </button>
+                            )}
+                            <div
+                              className="flex items-center gap-1.5 px-4 py-2 flex-wrap"
+                              style={{
+                                borderTop: "1px solid var(--color-border)",
+                              }}
+                            >
+                              {PALETTE.map((c) => (
+                                <button
+                                  key={c}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    updateFolder(folder.id, { color: c });
+                                    setMenuId(null);
+                                  }}
+                                  className="w-4 h-4 rounded-full shrink-0 transition-transform hover:scale-110"
+                                  style={{
+                                    background: c,
+                                    outline:
+                                      folder.color === c ?
+                                        `2px solid ${c}`
+                                      : "none",
+                                    outlineOffset: 2,
+                                  }}
+                                />
+                              ))}
+                            </div>
+                            {canManage && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAssigningId(folder.id);
+                                  setMenuId(null);
                                 }}
-                              />
-                            ))}
-                          </div>
-                          {canManage && (
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
+                                style={{
+                                  color: "var(--color-text-secondary)",
+                                  borderTop: "1px solid var(--color-border)",
+                                }}
+                                onMouseEnter={(e) =>
+                                  (e.currentTarget.style.background =
+                                    "var(--color-accent-light)")
+                                }
+                                onMouseLeave={(e) =>
+                                  (e.currentTarget.style.background =
+                                    "transparent")
+                                }
+                              >
+                                <Users size={12} /> Assign
+                              </button>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setAssigningId(folder.id);
+                                setDeleteCandidate({
+                                  id: folder.id,
+                                  name: folder.name,
+                                  total: taskCounts[folder.id]?.total ?? 0,
+                                });
                                 setMenuId(null);
                               }}
                               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                              style={{
-                                color: "var(--color-text-secondary)",
-                                borderTop: "1px solid var(--color-border)",
-                              }}
+                              style={{ color: "var(--color-danger)" }}
                               onMouseEnter={(e) =>
                                 (e.currentTarget.style.background =
-                                  "var(--color-accent-light)")
+                                  "rgba(239,68,68,0.08)")
                               }
                               onMouseLeave={(e) =>
                                 (e.currentTarget.style.background =
                                   "transparent")
                               }
                             >
-                              <Users size={12} /> Assign
+                              <Trash2 size={12} />
+                              Delete
                             </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteCandidate({
-                                id: folder.id,
-                                name: folder.name,
-                                total: taskCounts[folder.id]?.total ?? 0,
-                              });
-                              setMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs transition-colors"
-                            style={{ color: "var(--color-danger)" }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background =
-                                "rgba(239,68,68,0.08)")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "transparent")
-                            }
-                          >
-                            <Trash2 size={12} />
-                            Delete
-                          </button>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>,
-                  document.body,
-                )}
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>,
+                    document.body,
+                  )}
               </motion.div>
             );
           })}
@@ -865,6 +874,7 @@ export default function FolderGrid() {
           <p className="text-sm">No folders yet. Create one to get started!</p>
         </div>
       )}
+      </div>{/* end scrollable folder area */}
 
       <ConfirmDialog
         open={!!deleteCandidate}
@@ -965,7 +975,7 @@ export default function FolderGrid() {
                           alt={m.displayName}
                           width={28}
                           height={28}
-                          className="rounded-full shrink-0"
+                          className="w-7 h-7 rounded-full shrink-0 object-cover"
                         />
                       : <span
                           className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"

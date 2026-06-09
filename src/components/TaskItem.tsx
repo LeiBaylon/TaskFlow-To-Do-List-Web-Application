@@ -691,7 +691,7 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
         createPortal(
           <>
             <motion.div
-              className="fixed inset-0 z-[9998]"
+              className="fixed inset-0 z-9998"
               onClick={() => setShowAssignPopover(false)}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -701,7 +701,7 @@ export default function TaskItem({ task, depth = 0 }: TaskItemProps) {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed z-[9999] w-56 rounded-xl shadow-lg py-1"
+              className="fixed z-9999 w-56 rounded-xl shadow-lg py-1"
               style={{
                 top: assignPopoverPos.top,
                 right: assignPopoverPos.right,

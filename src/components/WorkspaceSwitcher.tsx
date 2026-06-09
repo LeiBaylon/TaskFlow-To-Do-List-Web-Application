@@ -148,7 +148,7 @@ export default function WorkspaceSwitcher({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -4, scale: 0.97 }}
                   transition={{ duration: 0.12 }}
-                  className="fixed z-[9999] rounded-xl shadow-xl overflow-hidden"
+                  className="fixed z-9999 rounded-xl shadow-xl overflow-hidden"
                   style={{
                     top: dropdownPos.top,
                     left: dropdownPos.left,

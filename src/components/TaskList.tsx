@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   SortAsc,
   SortDesc,
+  LayoutGrid,
+  LayoutList,
   CheckCheck,
   Search,
   X,
@@ -18,6 +20,7 @@ import {
 } from "lucide-react";
 import { useApp } from "@/store/AppContext";
 import TaskItem from "./TaskItem";
+import type { Task } from "@/lib/types";
 
 type SortField = "order" | "priority" | "dueDate" | "title";
 type StatusFilter =
@@ -45,7 +48,15 @@ export default function TaskList({
   selectMode?: boolean;
   onToggleSelectMode?: () => void;
 }) {
-  const { state, dispatch, updateTask, deleteTask, saveSavedViews } = useApp();
+  const {
+    state,
+    dispatch,
+    updateTask,
+    deleteTask,
+    openTaskModal,
+    saveSavedViews,
+    toggleTask,
+  } = useApp();
   const [sortField, setSortField] = useState<SortField>("order");
   const [sortAsc, setSortAsc] = useState(true);
   const [showCompleted, setShowCompleted] = useState(false);
@@ -55,6 +66,7 @@ export default function TaskList({
     "all" | "1" | "2" | "3" | "4"
   >("all");
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [displayMode, setDisplayMode] = useState<"list" | "grid">("list");
   const savedViews = (state.savedViews || []) as SavedView[];
 
   useEffect(() => {
@@ -216,12 +228,118 @@ export default function TaskList({
     clearSelection();
   };
 
+  const toggleTaskCompletion = (task: Task) => {
+    toggleTask(task.id);
+  };
+
+  const renderTaskCard = (task: Task) => {
+    const isSelected = selectedTaskIds.includes(task.id);
+    const isDone = task.completed || task.status === "done";
+
+    return (
+      <motion.div
+        key={task.id}
+        layout
+        whileHover={{ y: -2 }}
+        role="button"
+        tabIndex={0}
+        onClick={
+          selectMode ?
+            () => toggleSelect(task.id, !isSelected)
+          : () => openTaskModal({ mode: "edit", task })
+        }
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            if (selectMode) toggleSelect(task.id, !isSelected);
+            else openTaskModal({ mode: "edit", task });
+          }
+        }}
+        className="text-left rounded-2xl p-4 transition-all cursor-pointer"
+        style={{
+          background:
+            isSelected ? "rgba(99,102,241,0.08)" : "var(--color-surface)",
+          border: isSelected ? "1px solid var(--color-accent)" : "1px solid var(--color-border)",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+          opacity: isDone ? 0.8 : 1,
+        }}
+      >
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <div
+              className="w-3 h-3 rounded-full shrink-0 mt-1"
+              style={{
+                background:
+                  isDone ? "var(--color-success)" : "var(--color-accent)",
+              }}
+            />
+            <div className="min-w-0">
+              <div
+                className={`text-sm font-semibold truncate ${isDone ? "line-through opacity-60" : ""}`}
+                style={{ color: "var(--color-text-primary)" }}
+              >
+                {task.title}
+              </div>
+              <div
+                className="text-[11px] mt-0.5"
+                style={{ color: "var(--color-text-tertiary)" }}
+              >
+                {task.priority === 1
+                  ? "Urgent"
+                  : task.priority === 2
+                    ? "High"
+                    : task.priority === 3
+                      ? "Medium"
+                      : "Low"}
+                {task.dueDate ? ` · ${task.dueDate}` : ""}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleTaskCompletion(task);
+            }}
+            className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+            style={{
+              background: isDone ? "var(--color-success)" : "transparent",
+              border: isDone ? "none" : "1.5px solid var(--color-border)",
+              color: isDone ? "white" : "var(--color-text-tertiary)",
+            }}
+            aria-label={isDone ? "Mark incomplete" : "Mark complete"}
+          >
+            <Check size={13} />
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 text-[11px]">
+          <span
+            className="px-2 py-1 rounded-full"
+            style={{
+              background: "var(--color-background)",
+              color: "var(--color-text-tertiary)",
+            }}
+          >
+            {task.tags.length > 0
+              ? `${task.tags.length} tag${task.tags.length !== 1 ? "s" : ""}`
+              : "No tags"}
+          </span>
+          {selectMode && isSelected && (
+            <span style={{ color: "var(--color-accent)" }}>Selected</span>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
+
   const activeFolder = state.folders.find((f) => f.id === state.activeFolderId);
   const totalTasks =
     filteredTasks.incomplete.length + filteredTasks.completed.length;
 
   return (
-    <div className="max-w-2xl mx-auto w-full h-full flex flex-col min-h-0">
+    <div className="w-full h-full flex flex-col min-h-0">
       {/* Header */}
       <div className="flex items-center justify-between mb-6 shrink-0">
         <div>
@@ -243,7 +361,45 @@ export default function TaskList({
         </div>
 
         {/* Sort controls */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-0.5 p-1 rounded-xl"
+            style={{
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+            }}
+          >
+            <button
+              onClick={() => setDisplayMode("list")}
+              className="p-1.5 rounded-lg transition-all"
+              style={{
+                background:
+                  displayMode === "list" ? "var(--color-background)" : "transparent",
+                color:
+                  displayMode === "list" ? "var(--color-accent)" : "var(--color-text-tertiary)",
+              }}
+              title="List view"
+              aria-pressed={displayMode === "list"}
+            >
+              <LayoutList size={14} />
+            </button>
+            <button
+              onClick={() => setDisplayMode("grid")}
+              className="p-1.5 rounded-lg transition-all"
+              style={{
+                background:
+                  displayMode === "grid" ? "var(--color-background)" : "transparent",
+                color:
+                  displayMode === "grid" ? "var(--color-accent)" : "var(--color-text-tertiary)",
+              }}
+              title="Icon view"
+              aria-pressed={displayMode === "grid"}
+            >
+              <LayoutGrid size={14} />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1">
           <select
             value={sortField}
             onChange={(e) => setSortField(e.target.value as SortField)}
@@ -268,6 +424,7 @@ export default function TaskList({
               <SortAsc size={14} />
             : <SortDesc size={14} />}
           </button>
+          </div>
         </div>
       </div>
 
@@ -555,59 +712,66 @@ export default function TaskList({
 
       {/* Scrollable task list area */}
       <div className="flex-1 min-h-0 overflow-y-auto">
-      {/* Task list */}
-      <div className="space-y-0.5">
-        <AnimatePresence mode="popLayout">
-          {filteredTasks.incomplete.map((task) => {
-            const isSelected = selectedTaskIds.includes(task.id);
-            return (
-              <div
-                key={task.id}
-                className="flex items-center gap-2 rounded-xl transition-all"
-                style={
-                  isSelected ?
-                    {
-                      background: "rgba(99,102,241,0.06)",
-                      outline: "1.5px solid var(--color-accent)",
-                      outlineOffset: "0px",
-                    }
-                  : {}
-                }
-                onClick={
-                  selectMode ?
-                    () => toggleSelect(task.id, !isSelected)
-                  : undefined
-                }
-              >
-                {selectMode && (
+        {displayMode === "list" ? (
+          <div className="space-y-0.5">
+            <AnimatePresence mode="popLayout">
+              {filteredTasks.incomplete.map((task) => {
+                const isSelected = selectedTaskIds.includes(task.id);
+                return (
                   <div
-                    className="ml-2 w-4 h-4 rounded flex items-center justify-center shrink-0 transition-all cursor-pointer"
-                    style={{
-                      background:
-                        isSelected ? "var(--color-accent)" : "transparent",
-                      border:
-                        isSelected ?
-                          "2px solid var(--color-accent)"
-                        : "2px solid var(--color-border)",
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleSelect(task.id, !isSelected);
-                    }}
+                    key={task.id}
+                    className="flex items-center gap-2 rounded-xl transition-all"
+                    style={
+                      isSelected ?
+                        {
+                          background: "rgba(99,102,241,0.06)",
+                          outline: "1.5px solid var(--color-accent)",
+                          outlineOffset: "0px",
+                        }
+                      : {}
+                    }
+                    onClick={
+                      selectMode ?
+                        () => toggleSelect(task.id, !isSelected)
+                      : undefined
+                    }
                   >
-                    {isSelected && (
-                      <Check size={10} className="text-white" strokeWidth={3} />
+                    {selectMode && (
+                      <div
+                        className="ml-2 w-4 h-4 rounded flex items-center justify-center shrink-0 transition-all cursor-pointer"
+                        style={{
+                          background:
+                            isSelected ? "var(--color-accent)" : "transparent",
+                          border:
+                            isSelected ?
+                              "2px solid var(--color-accent)"
+                            : "2px solid var(--color-border)",
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelect(task.id, !isSelected);
+                        }}
+                      >
+                        {isSelected && (
+                          <Check size={10} className="text-white" strokeWidth={3} />
+                        )}
+                      </div>
                     )}
+                    <div className="flex-1 min-w-0">
+                      <TaskItem task={task} />
+                    </div>
                   </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <TaskItem task={task} />
-                </div>
-              </div>
-            );
-          })}
-        </AnimatePresence>
-      </div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            <AnimatePresence mode="popLayout">
+              {filteredTasks.incomplete.map((task) => renderTaskCard(task))}
+            </AnimatePresence>
+          </div>
+        )}
 
       {/* Empty state */}
       {filteredTasks.incomplete.length === 0 &&
@@ -671,62 +835,66 @@ export default function TaskList({
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden space-y-0.5"
+                className={
+                  displayMode === "grid"
+                    ? "overflow-hidden grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3"
+                    : "overflow-hidden space-y-0.5"
+                }
               >
-                {filteredTasks.completed.map((task) => {
-                  const isSelected = selectedTaskIds.includes(task.id);
-                  return (
-                    <div
-                      key={task.id}
-                      className="flex items-center gap-2 rounded-xl transition-all"
-                      style={
-                        isSelected ?
-                          {
-                            background: "rgba(99,102,241,0.06)",
-                            outline: "1.5px solid var(--color-accent)",
-                            outlineOffset: "0px",
-                          }
-                        : {}
-                      }
-                      onClick={
-                        selectMode ?
-                          () => toggleSelect(task.id, !isSelected)
-                        : undefined
-                      }
-                    >
-                      {selectMode && (
+                {displayMode === "grid"
+                  ? filteredTasks.completed.map((task) => renderTaskCard(task))
+                  : filteredTasks.completed.map((task) => {
+                      const isSelected = selectedTaskIds.includes(task.id);
+                      return (
                         <div
-                          className="ml-2 w-4 h-4 rounded flex items-center justify-center shrink-0 transition-all cursor-pointer"
-                          style={{
-                            background:
-                              isSelected ?
-                                "var(--color-accent)"
-                              : "transparent",
-                            border:
-                              isSelected ?
-                                "2px solid var(--color-accent)"
-                              : "2px solid var(--color-border)",
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleSelect(task.id, !isSelected);
-                          }}
+                          key={task.id}
+                          className="flex items-center gap-2 rounded-xl transition-all"
+                          style={
+                            isSelected ?
+                              {
+                                background: "rgba(99,102,241,0.06)",
+                                outline: "1.5px solid var(--color-accent)",
+                                outlineOffset: "0px",
+                              }
+                            : {}
+                          }
+                          onClick={
+                            selectMode ?
+                              () => toggleSelect(task.id, !isSelected)
+                            : undefined
+                          }
                         >
-                          {isSelected && (
-                            <Check
-                              size={10}
-                              className="text-white"
-                              strokeWidth={3}
-                            />
+                          {selectMode && (
+                            <div
+                              className="ml-2 w-4 h-4 rounded flex items-center justify-center shrink-0 transition-all cursor-pointer"
+                              style={{
+                                background:
+                                  isSelected ? "var(--color-accent)" : "transparent",
+                                border:
+                                  isSelected ?
+                                    "2px solid var(--color-accent)"
+                                  : "2px solid var(--color-border)",
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleSelect(task.id, !isSelected);
+                              }}
+                            >
+                              {isSelected && (
+                                <Check
+                                  size={10}
+                                  className="text-white"
+                                  strokeWidth={3}
+                                />
+                              )}
+                            </div>
                           )}
+                          <div className="flex-1 min-w-0">
+                            <TaskItem task={task} />
+                          </div>
                         </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <TaskItem task={task} />
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
               </motion.div>
             )}
           </AnimatePresence>

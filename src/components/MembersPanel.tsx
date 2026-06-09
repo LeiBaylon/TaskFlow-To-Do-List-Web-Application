@@ -418,7 +418,7 @@ function MemberRow({
           alt={member.displayName}
           width={32}
           height={32}
-          className="rounded-full shrink-0"
+          className="w-8 h-8 rounded-full shrink-0 object-cover"
         />
       : <div
           className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
@@ -502,14 +502,14 @@ function MemberRow({
               createPortal(
                 <>
                   <div
-                    className="fixed inset-0 z-[9998]"
+                    className="fixed inset-0 z-9998"
                     onClick={onToggleRoleDropdown}
                   />
                   <motion.div
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
-                    className="fixed z-[9999] rounded-lg shadow-lg overflow-hidden"
+                    className="fixed z-9999 rounded-lg shadow-lg overflow-hidden"
                     style={{
                       top: rolePos.top,
                       right: rolePos.right,

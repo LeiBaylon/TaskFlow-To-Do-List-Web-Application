@@ -24,6 +24,7 @@ import type {
 } from "@/lib/types";
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
+import { deleteField } from "firebase/firestore";
 import {
   initUserDocument,
   subscribeTasks,
@@ -68,10 +69,12 @@ import {
   logActivity,
   subscribeWsMessages,
   sendWsMessage,
+  updateWsMessage,
   getDmChannelId,
   ensureDmChannel,
   subscribeDmMessages,
   sendDmMessage,
+  updateDmMessage,
 } from "@/lib/workspace-firestore";
 import Toast from "@/components/Toast";
 
@@ -199,7 +202,10 @@ type Action =
   | { type: "SYNC_CHAT_MESSAGES"; payload: WorkspaceMessage[] }
   | { type: "SET_ACTIVE_DM"; payload: string | null }
   | { type: "SYNC_DM_MESSAGES"; payload: DirectMessage[] }
-  | { type: "SHOW_TOAST"; payload: { message: string; type: "success" | "error" } }
+  | {
+      type: "SHOW_TOAST";
+      payload: { message: string; type: "success" | "error" };
+    }
   | { type: "CLEAR_TOAST" };
 
 function withHistory(state: AppState): Pick<AppState, "history" | "future"> {
@@ -396,10 +402,13 @@ interface AppContextType {
     role: WorkspaceRole,
   ) => Promise<void>;
   leaveWorkspace: (wsId: string) => Promise<void>;
-  sendMessage: (text: string, attachment?: ChatAttachment) => void;
+  sendMessage: (text: string, attachment?: ChatAttachment, attachments?: ChatAttachment[]) => void;
   openDm: (userId: string) => void;
   closeDm: () => void;
-  sendDm: (text: string, attachment?: ChatAttachment) => void;
+  sendDm: (text: string, attachment?: ChatAttachment, attachments?: ChatAttachment[]) => void;
+  editMessage: (msgId: string, newText: string) => void;
+  deleteMessageForMe: (msgId: string) => void;
+  deleteMessageForEveryone: (msgId: string) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -1062,10 +1071,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const renameWorkspaceActionFn = useCallback(
     async (wsId: string, newName: string) => {
       if (!db) return;
-      await updateWsDoc(db, wsId, { name: newName, updatedAt: new Date().toISOString() });
+      await updateWsDoc(db, wsId, {
+        name: newName,
+        updatedAt: new Date().toISOString(),
+      });
       dispatch({
         type: "SHOW_TOAST",
-        payload: { message: `Workspace renamed to "${newName}"`, type: "success" },
+        payload: {
+          message: `Workspace renamed to "${newName}"`,
+          type: "success",
+        },
       });
     },
     [],
@@ -1141,9 +1156,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const sendMessageAction = useCallback(
-    (text: string, attachment?: ChatAttachment) => {
+    (text: string, attachment?: ChatAttachment, attachments?: ChatAttachment[]) => {
       if (!state.user || !db || !state.activeWorkspaceId) return;
-      if (!text.trim() && !attachment) return;
+      if (!text.trim() && !attachment && (!attachments || attachments.length === 0)) return;
       const msg: WorkspaceMessage = {
         id: genId(),
         text: text.trim(),
@@ -1152,6 +1167,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         userPhotoURL: state.user.photoURL || "",
         createdAt: new Date().toISOString(),
         ...(attachment ? { attachment } : {}),
+        ...(attachments && attachments.length > 0 ? { attachments } : {}),
       };
       sendWsMessage(db, state.activeWorkspaceId, msg);
     },
@@ -1167,7 +1183,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const sendDmAction = useCallback(
-    (text: string, attachment?: ChatAttachment) => {
+    (text: string, attachment?: ChatAttachment, attachments?: ChatAttachment[]) => {
       if (
         !state.user ||
         !db ||
@@ -1175,7 +1191,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         !state.activeDmUserId
       )
         return;
-      if (!text.trim() && !attachment) return;
+      if (!text.trim() && !attachment && (!attachments || attachments.length === 0)) return;
       const channelId = getDmChannelId(state.user.uid, state.activeDmUserId);
       const msg: DirectMessage = {
         id: genId(),
@@ -1185,8 +1201,73 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         senderPhotoURL: state.user.photoURL || "",
         createdAt: new Date().toISOString(),
         ...(attachment ? { attachment } : {}),
+        ...(attachments && attachments.length > 0 ? { attachments } : {}),
       };
       sendDmMessage(db, state.activeWorkspaceId, channelId, msg);
+    },
+    [state.user, state.activeWorkspaceId, state.activeDmUserId],
+  );
+
+  const editMessageAction = useCallback(
+    (msgId: string, newText: string) => {
+      if (!db || !state.activeWorkspaceId || !state.user) return;
+      const isDmActive = state.activeDmUserId !== null;
+      if (isDmActive) {
+        const channelId = getDmChannelId(state.user.uid, state.activeDmUserId!);
+        updateDmMessage(db, state.activeWorkspaceId, channelId, msgId, {
+          text: newText.trim(),
+          editedAt: new Date().toISOString(),
+        });
+      } else {
+        updateWsMessage(db, state.activeWorkspaceId, msgId, {
+          text: newText.trim(),
+          editedAt: new Date().toISOString(),
+        });
+      }
+    },
+    [state.user, state.activeWorkspaceId, state.activeDmUserId],
+  );
+
+  const deleteMessageForMeAction = useCallback(
+    (msgId: string) => {
+      if (!db || !state.activeWorkspaceId || !state.user) return;
+      const isDmActive = state.activeDmUserId !== null;
+      // Find the message to get current deletedFor
+      const msgs = isDmActive ? state.dmMessages : state.workspaceMessages;
+      const msg = msgs.find((m) => m.id === msgId);
+      const currentDeletedFor = msg?.deletedFor ?? [];
+      if (currentDeletedFor.includes(state.user.uid)) return;
+      const updated = [...currentDeletedFor, state.user.uid];
+      if (isDmActive) {
+        const channelId = getDmChannelId(state.user.uid, state.activeDmUserId!);
+        updateDmMessage(db, state.activeWorkspaceId, channelId, msgId, {
+          deletedFor: updated,
+        } as Partial<DirectMessage>);
+      } else {
+        updateWsMessage(db, state.activeWorkspaceId, msgId, {
+          deletedFor: updated,
+        } as Partial<WorkspaceMessage>);
+      }
+    },
+    [state.user, state.activeWorkspaceId, state.activeDmUserId, state.dmMessages, state.workspaceMessages],
+  );
+
+  const deleteMessageForEveryoneAction = useCallback(
+    (msgId: string) => {
+      if (!db || !state.activeWorkspaceId || !state.user) return;
+      const isDmActive = state.activeDmUserId !== null;
+      const fields = {
+        text: "",
+        attachment: deleteField(),
+        attachments: deleteField(),
+        deletedForEveryone: true,
+      };
+      if (isDmActive) {
+        const channelId = getDmChannelId(state.user.uid, state.activeDmUserId!);
+        updateDmMessage(db, state.activeWorkspaceId, channelId, msgId, fields as unknown as Partial<DirectMessage>);
+      } else {
+        updateWsMessage(db, state.activeWorkspaceId, msgId, fields as unknown as Partial<WorkspaceMessage>);
+      }
     },
     [state.user, state.activeWorkspaceId, state.activeDmUserId],
   );
@@ -1232,10 +1313,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         openDm: openDmAction,
         closeDm: closeDmAction,
         sendDm: sendDmAction,
+        editMessage: editMessageAction,
+        deleteMessageForMe: deleteMessageForMeAction,
+        deleteMessageForEveryone: deleteMessageForEveryoneAction,
       }}
     >
       {children}
-      {state.toast && <Toast message={state.toast.message} type={state.toast.type} onClose={() => dispatch({ type: "CLEAR_TOAST" })} />}
+      {state.toast && (
+        <Toast
+          message={state.toast.message}
+          type={state.toast.type}
+          onClose={() => dispatch({ type: "CLEAR_TOAST" })}
+        />
+      )}
     </AppContext.Provider>
   );
 }

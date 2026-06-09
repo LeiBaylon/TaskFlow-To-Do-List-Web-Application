@@ -1,0 +1,126 @@
+[00:00:00.852] Server  LOG     ✓ Ready in 607ms
+[00:00:08.351] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:02:21.189] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:02:21.966] Browser WARN    Image with src "http://localhost:3000/Logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[00:05:08.427] Server  LOG     ✓ Compiled in 128ms
+[00:05:21.060] Server  LOG     ✓ Compiled in 92ms
+[00:58:33.603] Server  LOG     ✓ Compiled in 338ms
+[01:07:02.773] Browser WARN    Image with src "http://localhost:3000/favicon.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[01:07:34.350] Server  LOG     ✓ Compiled in 80ms
+[01:07:43.920] Server  LOG     ✓ Compiled in 66ms
+[01:07:44.195] Server  LOG     ✓ Compiled in 42ms
+[01:08:11.889] Server  LOG     ✓ Compiled in 148ms
+[01:08:11.997] Browser ERROR   ./src/components/ChatView.tsx:370:107
+Parsing ecmascript source code failed
+  368 |                       width={20}
+  369 |                       height={20}
+> 370 |                       className="w-5 h-5 rounded-full object-cover" flex items-center justify-center text-[9px] font-bold text-white"
+      |                                                                                                           ^
+  371 |                       style={{ background: "var(--color-accent)" }}
+  372 |                     >
+  373 |                       {member.displayName.charAt(0).toUpperCase()}
+
+Expected '</', got '['
+
+Import traces:
+  Client Component Browser:
+    ./src/components/ChatView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/ChatView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[01:08:37.249] Server  LOG     ✓ Compiled in 105ms
+[01:08:37.353] Browser ERROR   ./src/components/ChatView.tsx:421:130
+Parsing ecmascript source code failed
+  419 |                       width={28}
+  420 |                       height={28}
+> 421 |                       className="w-7 h-7 rounded-full object-cover" flex items-center justify-center text-xs font-bold text-white"
+      |                                                                                                                                  ^
+  422 |                       style={{ background: "var(--color-accent)" }}
+  423 |                     >
+  424 |                       {(dmTarget?.displayName || "?").charAt(0).toUpperCase()}
+
+Unterminated string constant
+
+Import traces:
+  Client Component Browser:
+    ./src/components/ChatView.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/ChatView.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+[01:08:49.262] Server  LOG     ✓ Compiled in 98ms
+[01:09:33.721] Server  LOG     ✓ Compiled in 22ms
+[01:09:38.857] Server  LOG     ✓ Compiled in 86ms
+[01:09:51.354] Server  LOG     ✓ Compiled in 37ms
+[01:16:15.961] Server  WARN    ⚠ Fast Refresh had to perform a full reload when ./src/lib/workspace-firestore.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[01:16:15.979] Server  LOG     ✓ Compiled in 80ms
+[01:16:16.557] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:16:17.685] Browser WARN    Image with src "http://localhost:3000/Logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[01:16:28.003] Server  WARN    ⚠ Fast Refresh had to perform a full reload when ./src/lib/workspace-firestore.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[01:16:28.064] Server  LOG     ✓ Compiled in 45ms
+[01:16:28.387] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:16:29.058] Browser WARN    Image with src "http://localhost:3000/Logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[01:16:39.170] Server  WARN    ⚠ Fast Refresh had to perform a full reload when ./src/store/AppContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[01:16:39.227] Server  LOG     ✓ Compiled in 64ms
+[01:16:39.496] Server  WARN    ⚠ Fast Refresh had to perform a full reload when ./src/store/AppContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[01:16:39.706] Server  LOG     ✓ Compiled in 27ms
+[01:16:39.849] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:16:40.499] Browser WARN    Image with src "http://localhost:3000/Logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[01:16:46.256] Server  WARN    ⚠ Fast Refresh had to perform a full reload when ./src/store/AppContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[01:16:46.320] Server  LOG     ✓ Compiled in 33ms
+[01:16:46.750] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:16:47.301] Browser WARN    Image with src "http://localhost:3000/Logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[01:16:56.102] Server  WARN    ⚠ Fast Refresh had to perform a full reload when ./src/store/AppContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[01:16:56.150] Server  LOG     ✓ Compiled in 37ms
+[01:16:56.496] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:16:57.220] Browser WARN    Image with src "http://localhost:3000/Logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[01:17:12.473] Server  WARN    ⚠ Fast Refresh had to perform a full reload when ./src/store/AppContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[01:17:12.532] Server  LOG     ✓ Compiled in 138ms
+[01:17:12.886] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:17:13.682] Browser WARN    Image with src "http://localhost:3000/Logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[01:17:18.281] Server  WARN    ⚠ Fast Refresh had to perform a full reload when ./src/store/AppContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[01:17:18.300] Server  LOG     ✓ Compiled in 58ms
+[01:17:18.726] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[01:17:19.349] Browser WARN    Image with src "http://localhost:3000/Logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[01:17:31.979] Server  LOG     ✓ Compiled in 40ms
+[01:17:44.795] Server  LOG     ✓ Compiled in 88ms
+[01:17:59.935] Server  LOG     ✓ Compiled in 129ms
+[01:18:12.202] Server  LOG     ✓ Compiled in 57ms
+[01:18:20.921] Server  LOG     ✓ Compiled in 61ms
+[01:18:37.082] Server  LOG     ✓ Compiled in 73ms
+[01:19:03.182] Server  LOG     ✓ Compiled in 71ms
+[01:19:44.844] Server  LOG     ✓ Compiled in 383ms
+[01:20:24.890] Server  LOG     ✓ Compiled in 101ms
+[01:21:16.310] Server  LOG     ✓ Compiled in 48ms
+[01:30:21.364] Server  LOG     ✓ Compiled in 105ms
+[01:30:44.669] Server  LOG     ✓ Compiled in 54ms
+[02:03:26.478] Browser ERROR   unhandledRejection: FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined (found in field attachment in document workspaces/214614dc-02a0-4bd8-bdfe-974c47200ebf/messages/f41ade31-e023-4077-a9d6-b6c1a669d4d6)
+[02:04:41.508] Server  WARN    ⚠ Fast Refresh had to perform a full reload when ./src/store/AppContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[02:04:41.532] Server  LOG     ✓ Compiled in 69ms
+[02:04:42.133] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[02:04:42.905] Browser WARN    Image with src "http://localhost:3000/Logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[02:04:50.645] Server  WARN    ⚠ Fast Refresh had to perform a full reload when ./src/store/AppContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[02:04:51.109] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[02:04:51.801] Browser WARN    Image with src "http://localhost:3000/Logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[02:41:36.192] Server  LOG     ✓ Compiled in 103ms
+[03:18:04.215] Server  WARN    ⚠ Fast Refresh had to perform a full reload when ./src/store/AppContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[03:18:04.231] Server  LOG     ✓ Compiled in 138ms
+[03:18:04.863] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[03:18:05.900] Browser WARN    Image with src "http://localhost:3000/Logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[03:22:19.592] Server  WARN    ⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[03:22:19.616] Server  LOG     ✓ Compiled in 113ms
+[03:22:19.994] Server  WARN    ⚠ Fast Refresh had to perform a full reload when ./src/lib/firestore.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[03:22:20.227] Server  LOG     ✓ Compiled in 0ms
+[03:22:20.488] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[03:22:21.108] Browser WARN    Image with src "http://localhost:3000/Logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[03:22:27.018] Server  WARN    ⚠ Fast Refresh had to perform a full reload when ./src/lib/workspace-firestore.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[03:22:27.034] Server  LOG     ✓ Compiled in 43ms
+[03:22:27.432] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[03:22:27.960] Browser WARN    Image with src "http://localhost:3000/Logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
